@@ -404,6 +404,115 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 	WaitForGPU();
 }
 
+// --------------------------------------------------------
+// Helper for creating a static buffer that will get
+// data once and remain immutable
+//
+// dataStride - The size of one piece of data in the buffer (like a vertex)
+// dataCount - How many pieces of data (like how many vertices)
+// data - Pointer to the data itself
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(
+	size_t dataStride, size_t dataCount, void* data)
+{
+	// Creates a temporary command allocator and list so we don't
+	// screw up any other ongoing work (since resetting a command allocator
+	// cannot happen while its list is being executed). These ComPtrs will
+	// be cleaned up automatically when they go out of scope.
+	// Notes: This certainly isn't efficient, but hopefully this only
+	//		  happens during start-up. Otherwise, refactor this to use
+	//        the existing list and allocator(s).
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> localAllocator;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> localList;
+
+	Device->CreateCommandAllocator(
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(localAllocator.GetAddressOf()));
+
+	Device->CreateCommandList(
+		0,	// Which physical GPU will handle these tasks? 0 for single GPU setup
+		D3D12_COMMAND_LIST_TYPE_DIRECT,		// Type of command list
+		localAllocator.Get(),				// The allocator for this list (to start)
+		0,									// Initial pipeline state - none for now
+		IID_PPV_ARGS(localList.GetAddressOf()));
+
+	// The overall buffer we'll be creating
+	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
+
+	// Describes the final heap
+	D3D12_HEAP_PROPERTIES props = {};
+	props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	props.CreationNodeMask = 1;
+	props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	props.Type = D3D12_HEAP_TYPE_DEFAULT;
+	props.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Alignment = 0;
+	desc.DepthOrArraySize = 1;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Height = 1; // Assuming this is a regular buffer, not a texture
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.MipLevels = 1;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Width = dataStride * dataCount; // Size of the buffer
+
+	Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		0,
+		IID_PPV_ARGS(buffer.GetAddressOf()));
+
+	// Now create an intermediate upload heap for copying initial data
+	D3D12_HEAP_PROPERTIES uploadProps = {};
+	uploadProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	uploadProps.CreationNodeMask = 1;
+	uploadProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+	uploadProps.VisibleNodeMask = 1;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> uploadHeap;
+	Device->CreateCommittedResource(
+		&uploadProps,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		0,
+		IID_PPV_ARGS(uploadHeap.GetAddressOf()));
+
+	// Do a straight map / memcpy / unmap
+	void* gpuAddress = 0;
+	uploadHeap->Map(0, 0, &gpuAddress);
+	memcpy(gpuAddress, data, dataStride * dataCount);
+	uploadHeap->Unmap(0, 0);
+
+	// Copy the whole buffer from uploadHeap to vert buffer
+	localList->CopyResource(buffer.Get(), uploadHeap.Get());
+
+	// Transition the buffer to generic read for the rest of the app lifetime (presumably)
+	D3D12_RESOURCE_BARRIER rb = {};
+	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	rb.Transition.pResource = buffer.Get();
+	rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	rb.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	localList->ResourceBarrier(1, &rb);
+
+	// Execute the local command list and wait for it to complete
+	// before returning the final buffer
+	localList->Close();
+	ID3D12CommandList* list[] = { localList.Get() };
+	CommandQueue->ExecuteCommandLists(1, list);
+
+	WaitForGPU();
+	return buffer;
+}
 
 // --------------------------------------------------------
 // Prints graphics debug messages waiting in the queue
