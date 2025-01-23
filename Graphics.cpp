@@ -597,7 +597,7 @@ void Graphics::PrintDebugMessages()
 		InfoQueue->GetMessage(i, 0, &messageSize);
 
 		// Reserve space for this message
-		D3D11_MESSAGE* message = (D3D11_MESSAGE*)malloc(messageSize);
+		D3D12_MESSAGE* message = (D3D12_MESSAGE*)malloc(messageSize);
 		InfoQueue->GetMessage(i, message, &messageSize);
 		
 		// Print and clean up memory
@@ -606,15 +606,15 @@ void Graphics::PrintDebugMessages()
 			// Color code based on severity
 			switch (message->Severity)
 			{
-			case D3D11_MESSAGE_SEVERITY_CORRUPTION:
-			case D3D11_MESSAGE_SEVERITY_ERROR:
+			case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+			case D3D12_MESSAGE_SEVERITY_ERROR:
 				printf("\x1B[91m"); break; // RED
 
-			case D3D11_MESSAGE_SEVERITY_WARNING:
+			case D3D12_MESSAGE_SEVERITY_WARNING:
 				printf("\x1B[93m"); break; // YELLOW
 
-			case D3D11_MESSAGE_SEVERITY_INFO:
-			case D3D11_MESSAGE_SEVERITY_MESSAGE:
+			case D3D12_MESSAGE_SEVERITY_INFO:
+			case D3D12_MESSAGE_SEVERITY_MESSAGE:
 				printf("\x1B[96m"); break; // CYAN
 			}
 
