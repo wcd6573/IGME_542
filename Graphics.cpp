@@ -305,74 +305,103 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 	if (!apiInitialized)
 		return;
 
-	BackBufferRTV.Reset();
-	DepthBufferDSV.Reset();
+	// Wait for the GPU to finish all work, since we'll
+	// be destroying and recreating resources
+	WaitForGPU();
 
-	// Resize the swap chain buffers
+	// Release the back buffers using ComPtr's Reset()
+	for (unsigned int i = 0; i < NumBackBuffers; i++)
+		BackBuffers[i].Reset();
+
+	// Resize the swap chain (assuming a basic color format here)
 	SwapChain->ResizeBuffers(
-		2, 
-		width, 
-		height, 
-		DXGI_FORMAT_R8G8B8A8_UNORM, 
+		NumBackBuffers,
+		width,
+		height,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
 		supportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
 
-	// Grab the references to the first buffer
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> backBufferTexture;
-	SwapChain->GetBuffer(
-		0,
-		__uuidof(ID3D11Texture2D),
-		(void**)backBufferTexture.GetAddressOf());
+	// Whaat is the increment size between RTV descriptors in a 
+	// descriptor heap? This differs per GPU so we need to
+	// get it at applications start up
+	SIZE_T RTVDescriptorSize = (SIZE_T)Device->
+		GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	// Now that we have the texture, create a render target view
-	// for the back buffer so we can render into it.
-	Device->CreateRenderTargetView(
-		backBufferTexture.Get(),
-		0,
-		BackBufferRTV.GetAddressOf());
+	// Go through the steps to setup the back buffers again
+	// Note: This assumes the descriptor heap already exists
+	// and that the rtvDescriptorSize was previously set
+	for (unsigned int i = 0; i < NumBackBuffers; i++)
+	{
+		// Grab this buffer from the swap chain
+		SwapChain->GetBuffer(i, IID_PPV_ARGS(BackBuffers[i].GetAddressOf()));
 
-	// Set up the description of the texture to use for the depth buffer
-	D3D11_TEXTURE2D_DESC depthStencilDesc = {};
-	depthStencilDesc.Width = width;
-	depthStencilDesc.Height = height;
-	depthStencilDesc.MipLevels = 1;
-	depthStencilDesc.ArraySize = 1;
-	depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-	depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	depthStencilDesc.CPUAccessFlags = 0;
-	depthStencilDesc.MiscFlags = 0;
-	depthStencilDesc.SampleDesc.Count = 1;
-	depthStencilDesc.SampleDesc.Quality = 0;
+		// Make a handle for it
+		RTVHandles[i] = RTVHeap->GetCPUDescriptorHandleForHeapStart();
+		RTVHandles[i].ptr += RTVDescriptorSize * (size_t)i;
 
-	// Create the depth buffer and its view, then 
-	// release our reference to the texture
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> depthBufferTexture;
-	Device->CreateTexture2D(&depthStencilDesc, 0, &depthBufferTexture);
-	Device->CreateDepthStencilView(
-		depthBufferTexture.Get(),
-		0,
-		DepthBufferDSV.GetAddressOf()); 
+		// Create the render target view
+		Device->CreateRenderTargetView(BackBuffers[i].Get(), 0, RTVHandles[i]);
+	}
 
-	// Bind the views to the pipeline, so rendering properly 
-	// uses their underlying textures
-	Context->OMSetRenderTargets(
-		1,
-		BackBufferRTV.GetAddressOf(), // This requires a pointer to a pointer (an array of pointers), so we get the address of the pointer
-		DepthBufferDSV.Get());
+	// Reset the depth buffer and create it again
+	{
+		DepthBuffer.Reset();
 
-	// Lastly, set up a viewport so we render into
-	// to correct portion of the window
-	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-	viewport.Width = (float)width;
-	viewport.Height = (float)height;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-	Context->RSSetViewports(1, &viewport);
+		// Describe the depth stencil buffer resource
+		D3D12_RESOURCE_DESC depthBufferDesc = {};
+		depthBufferDesc.Alignment = 0;
+		depthBufferDesc.DepthOrArraySize = 1;
+		depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthBufferDesc.Height = height;
+		depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthBufferDesc.MipLevels = 1;
+		depthBufferDesc.SampleDesc.Count = 1;
+		depthBufferDesc.SampleDesc.Quality = 0;
+		depthBufferDesc.Width = width;
+
+		// Describe the clear value that will most often be used
+		// for this buffer (which optimizes the clearing of the buffer
+		D3D12_CLEAR_VALUE clear = {};
+		clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		clear.DepthStencil.Depth = 1.0f;
+		clear.DepthStencil.Stencil = 0;
+
+		// Describe the memory heap that will house this resource
+		D3D12_HEAP_PROPERTIES props = {};
+		props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		props.CreationNodeMask = 1;
+		props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		props.Type = D3D12_HEAP_TYPE_DEFAULT;
+		props.VisibleNodeMask = 1;
+
+		// Actually create the resource, and the heap in which it
+		// will reside, and map the resource to that heap
+		Device->CreateCommittedResource(
+			&props,
+			D3D12_HEAP_FLAG_NONE,
+			&depthBufferDesc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&clear,
+			IID_PPV_ARGS(DepthBuffer.GetAddressOf()));
+
+		// Now recreate the depth stencil view
+		DSVHandle = DSVHeap->GetCPUDescriptorHandleForHeapStart();
+		Device->CreateDepthStencilView(
+			DepthBuffer.Get(),
+			0,	// Default view (first mip)
+			DSVHandle);
+	}
+
+	// Reset back to the first buffer
+	currentBackBufferIndex = 0;
 
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
+
+	// Wait for the GPU before we proceed
+	WaitForGPU();
 }
 
 
