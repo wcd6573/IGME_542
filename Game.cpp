@@ -75,10 +75,10 @@ void Game::CreateRootSigAndPipelineState()
 		inputElements[0].SemanticIndex = 0;
 
 		// Set up the second element - a color, which is 4 more float values
-		inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-		inputElements[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		inputElements[0].SemanticName = "COLOR";
-		inputElements[0].SemanticIndex = 0;
+		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElements[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		inputElements[1].SemanticName = "COLOR";
+		inputElements[1].SemanticIndex = 0;
 	}
 
 	// Root Signature
