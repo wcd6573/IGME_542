@@ -1,3 +1,10 @@
+/*
+William Duprey
+1/23/25
+Game Implementation
+- Starter code provided by Prof. Chris Cascioli.
+*/
+
 #include "Game.h"
 #include "Graphics.h"
 #include "Vertex.h"

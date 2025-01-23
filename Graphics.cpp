@@ -1,3 +1,10 @@
+/*
+William Duprey
+1/23/25
+Graphics Implementation
+- Starter code provided by Prof. Chris Cascioli.
+*/
+
 #include "Graphics.h"
 #include <dxgi1_6.h>
 

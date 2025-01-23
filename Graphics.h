@@ -1,3 +1,10 @@
+/*
+William Duprey
+1/23/25
+Graphics Header
+- Starter code provided by Prof. Chris Cascioli.
+*/
+
 #pragma once
 
 #include <Windows.h>

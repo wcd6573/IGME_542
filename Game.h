@@ -1,3 +1,10 @@
+/*
+William Duprey
+1/23/25
+Game Header
+- Starter code provided by Prof. Chris Cascioli.
+*/
+
 #pragma once
 
 #include <d3d12.h>
