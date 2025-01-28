@@ -467,11 +467,15 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(
 	desc.SampleDesc.Quality = 0;
 	desc.Width = dataStride * dataCount; // Size of the buffer
 
+	// Potential D3D12 warning here?
+	// With the resource state - it always starts as STATE_COMMON
+	// - Issue with drivers / Windows SDK?
+	// - Or Windows 11?
 	Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_COMMON,
 		0,
 		IID_PPV_ARGS(buffer.GetAddressOf()));
 
