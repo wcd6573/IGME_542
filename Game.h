@@ -10,6 +10,8 @@ Game Header
 #include <d3d12.h>
 #include <wrl/client.h>
 
+#include "Camera.h"
+
 class Game
 {
 public:
