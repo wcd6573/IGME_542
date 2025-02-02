@@ -98,11 +98,26 @@ void Game::CreateRootSigAndPipelineState()
 
 	// Root Signature
 	{
-		// Describe and serialize the root signature
+		// Define a table of CBV's (constant buffer views)
+		D3D12_DESCRIPTOR_RANGE cbvTable = {};
+		cbvTable.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvTable.NumDescriptors = 1;
+		cbvTable.BaseShaderRegister = 0;
+		cbvTable.RegisterSpace = 0;
+		cbvTable.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Define the root parameter
+		D3D12_ROOT_PARAMETER rootParam = {};
+		rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+		rootParam.DescriptorTable.NumDescriptorRanges = 1;
+		rootParam.DescriptorTable.pDescriptorRanges = &cbvTable;
+
+		// Describe the overall the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
 		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-		rootSig.NumParameters = 0;
-		rootSig.pParameters = 0;
+		rootSig.NumParameters = 1;
+		rootSig.pParameters = &rootParam;
 		rootSig.NumStaticSamplers = 0;
 		rootSig.pStaticSamplers = 0;
 
