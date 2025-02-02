@@ -29,9 +29,11 @@ public:
 	// (scary, and I don't want to deal with them)
 
 	// Getters for the private fields
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetVertexBuffer();
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetVertexBuffer();
+	D3D12_VERTEX_BUFFER_VIEW GetVBView();
 	UINT GetIndexCount();
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetIndexBuffer();
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetIndexBuffer();
+	D3D12_INDEX_BUFFER_VIEW GetIBView();
 	UINT GetVertexCount();
 	const char* GetName();
 
@@ -48,12 +50,16 @@ private:
 		UINT* indices, size_t _indexCount);
 
 	// Vertices of the triangles making up the mesh
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	UINT vertexCount;
+	
 
 	// Indices of the vertices of the triangles making up the mesh
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
+	D3D12_INDEX_BUFFER_VIEW ibView{};
 	UINT indexCount;
+	
 
 	// Name of the mesh for ImGui to display
 	const char* name;

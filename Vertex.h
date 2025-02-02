@@ -14,7 +14,7 @@ Vertex Definition
 struct Vertex
 {
 	DirectX::XMFLOAT3 Position;	    // Local position
+	DirectX::XMFLOAT2 UV;			// Texture coordinate
 	DirectX::XMFLOAT3 Normal;		// Normal vector from vertex
 	DirectX::XMFLOAT3 Tangent;		// Tangent vector from vertex
-	DirectX::XMFLOAT2 UV;			// Texture coordinate
 };
