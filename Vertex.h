@@ -1,14 +1,20 @@
+/*
+William Duprey
+2/1/25
+Vertex Definition
+*/
+
 #pragma once
 
 #include <DirectXMath.h>
 
 // --------------------------------------------------------
-// A custom vertex definition
-//
-// You will eventually ADD TO this, and/or make more of these!
+// A custom vertex definition.
 // --------------------------------------------------------
 struct Vertex
 {
-	DirectX::XMFLOAT3 Position;	    // The local position of the vertex
-	DirectX::XMFLOAT4 Color;        // The color of the vertex
+	DirectX::XMFLOAT3 Position;	    // Local position
+	DirectX::XMFLOAT3 Normal;		// Normal vector from vertex
+	DirectX::XMFLOAT3 Tangent;		// Tangent vector from vertex
+	DirectX::XMFLOAT2 UV;			// Texture coordinate
 };
