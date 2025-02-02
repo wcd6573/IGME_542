@@ -1,6 +1,8 @@
-// William Duprey
-// 10/16/24
-// Mesh Class Implementation
+/*
+William Duprey
+2/2/25
+Mesh Class Implementation
+*/
 
 #include "Mesh.h"
 #include <fstream>
@@ -242,7 +244,6 @@ Mesh::Mesh(const char* _name, const char* objFile)
 	// ----- END CODE PROVIDED BY PROF. CHRIS CASCIOLI -----
 
 	// CalculateTangents helper method provided by Chris Cascioli
-	CalculateTangents(&verts[0], vertCounter, &indices[0], indexCounter);
 	CreateBuffers(&verts[0], vertCounter, &indices[0], indexCounter);
 }
 
@@ -259,43 +260,16 @@ Mesh::~Mesh() { }
 ///////////////////////////////////////////////////////////////////////////////
 // Vertex buffer getters
 Microsoft::WRL::ComPtr<ID3D12Resource> Mesh::GetVertexBuffer() { return vertexBuffer; }
-D3D12_VERTEX_BUFFER_VIEW Mesh::GetVBView() { return vbView; }
+D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() { return vbView; }
 UINT Mesh::GetVertexCount() { return vertexCount; }
 
 // Index buffer getters
 Microsoft::WRL::ComPtr<ID3D12Resource> Mesh::GetIndexBuffer() { return indexBuffer; }
-D3D12_INDEX_BUFFER_VIEW Mesh::GetIBView() { return ibView; }
+D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
 UINT Mesh::GetIndexCount() { return indexCount; }
 
 const char* Mesh::GetName() { return name; }
 
-
-///////////////////////////////////////////////////////////////////////////////
-// --------------------------------- DRAW ---------------------------------- //
-///////////////////////////////////////////////////////////////////////////////
-// --------------------------------------------------------
-// Sets up vertex and index buffers for the input assembler,
-// then draws the indexed vertices.
-// 
-// Code mostly copied from the Game::Draw() starter code,
-// including comments, so I can continue to understand.
-// --------------------------------------------------------
-void Mesh::SetBuffersAndDraw()
-{
-	// DRAW geometry
-	// - These steps are generally repeated for EACH object you draw
-	// - Other Direct3D calls will also be necessary to do more complex things
-	{
-		// Set buffers in the input assembler (IA) stage
-		//  - Do this ONCE PER OBJECT, since each object may have different geometry
-		Graphics::CommandList->IASetVertexBuffers(0, 1, &vbView);
-		Graphics::CommandList->IASetIndexBuffer(&ibView);
-		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		// Draw
-		Graphics::CommandList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
-	}
-}
 
 // --------------------------------------------------------
 // Author: Chris Cascioli
@@ -399,30 +373,29 @@ void Mesh::CreateBuffers(Vertex* vertices, size_t _vertexCount,
 	vertexCount = (UINT)_vertexCount;
 	indexCount = (UINT)_indexCount;
 
+	// Calculate tangents before copying to buffer
+	CalculateTangents(vertices, _vertexCount, indices, _indexCount);
+
 	// Create a VERTEX BUFFER
 	// - This holds the vertex data of triangles for a single object
 	// - This buffer is created on the GPU, which is where the data needs to
 	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// Create vertex buffer using the CreateStaticBuffer helper method
-		Graphics::CreateStaticBuffer(sizeof(Vertex), vertexCount, vertexBuffer.GetAddressOf());
-	}
-
+	// Create vertex buffer using the CreateStaticBuffer helper method
+	vertexBuffer = Graphics::CreateStaticBuffer(sizeof(Vertex), vertexCount, vertices);
+	
 	// Create an INDEX BUFFER
 	// - This holds indices to elements in the vertex buffer
 	// - This is most useful when vertices are shared among neighboring triangles
 	// - This buffer is created on the GPU, which is where the data needs to
 	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		Graphics::CreateStaticBuffer(sizeof(unsigned int), indexCount, indexBuffer.GetAddressOf());
-	}
+	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), indexCount, indices);
 
 	// Set up the views
-	vbView.StrideInBytes = sizeof(Vertex);
-	vbView.SizeInBytes = sizeof(Vertex) * vertexCount;
+	vbView.StrideInBytes = (UINT)sizeof(Vertex);
+	vbView.SizeInBytes = (UINT)sizeof(Vertex) * vertexCount;
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 
 	ibView.Format = DXGI_FORMAT_R32_UINT;
-	ibView.SizeInBytes = sizeof(unsigned int) * indexCount;
+	ibView.SizeInBytes = (UINT)sizeof(unsigned int) * indexCount;
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 }

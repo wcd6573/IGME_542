@@ -1,6 +1,6 @@
 /*
 William Duprey
-1/23/25
+2/2/25
 Game Implementation
 - Starter code provided by Prof. Chris Cascioli.
 */
@@ -11,6 +11,7 @@ Game Implementation
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
+#include "BufferStructs.h"
 
 #include <DirectXMath.h>
 
@@ -27,11 +28,14 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
-	// Helper methods for loading shaders, creating some basic
-	// geometry to draw and some simple camera matrices.
-	//  - You'll be expanding and/or replacing these later
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
+
+	// Create camera, and aim it slightly downwards
+	camera = std::make_shared<Camera>(
+		XMFLOAT3(-0.5f, 6.25f, -15.5f),
+		Window::AspectRatio());
+	camera->GetTransform()->SetRotation(0.366f, 0.0f, 0.0f);
 }
 
 
@@ -227,12 +231,53 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 	
+	// --- Load models --- 
+	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube",
+		FixPath("../../Assets/Models/cube.obj").c_str());
+	std::shared_ptr<Mesh> cylinder = std::make_shared<Mesh>("Cylinder",
+		FixPath("../../Assets/Models/cylinder.obj").c_str());
+	std::shared_ptr<Mesh> helix = std::make_shared<Mesh>("Helix",
+		FixPath("../../Assets/Models/helix.obj").c_str());
+	std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>("Sphere",
+		FixPath("../../Assets/Models/sphere.obj").c_str());
+	std::shared_ptr<Mesh> torus = std::make_shared<Mesh>("Torus",
+		FixPath("../../Assets/Models/torus.obj").c_str());
+	std::shared_ptr<Mesh> quad = std::make_shared<Mesh>("Quad",
+		FixPath("../../Assets/Models/quad.obj").c_str());
+	std::shared_ptr<Mesh> quadDouble = std::make_shared<Mesh>("Quad Double Sided",
+		FixPath("../../Assets/Models/quad_double_sided.obj").c_str());
+	
+	// --- Create entities ---
+	std::shared_ptr<GameEntity> entity1 = std::make_shared<GameEntity>(cube);
+	std::shared_ptr<GameEntity> entity2 = std::make_shared<GameEntity>(cylinder);
+	std::shared_ptr<GameEntity> entity3 = std::make_shared<GameEntity>(helix);
+	std::shared_ptr<GameEntity> entity4 = std::make_shared<GameEntity>(sphere);
+	std::shared_ptr<GameEntity> entity5 = std::make_shared<GameEntity>(torus);
+	std::shared_ptr<GameEntity> entity6 = std::make_shared<GameEntity>(quad);
+	std::shared_ptr<GameEntity> entity7 = std::make_shared<GameEntity>(quadDouble);
+
+	// --- Move entities --- 
+	entity1->GetTransform()->MoveAbsolute(XMFLOAT3(-9.0f, 0.0f, 0.0f));
+	entity2->GetTransform()->MoveAbsolute(XMFLOAT3(-6.0f, 0.0f, 0.0f));
+	entity3->GetTransform()->MoveAbsolute(XMFLOAT3(-3.0f, 0.0f, 0.0f));
+	entity5->GetTransform()->MoveAbsolute(XMFLOAT3(3.0f, 0.0f, 0.0f));
+	entity6->GetTransform()->MoveAbsolute(XMFLOAT3(6.0f, 0.0f, 0.0f));
+	entity7->GetTransform()->MoveAbsolute(XMFLOAT3(9.0f, 0.0f, 0.0f));
+
+	// --- Add entities to vector ---
+	entities.push_back(entity1);
+	entities.push_back(entity2);
+	entities.push_back(entity3);
+	entities.push_back(entity4);
+	entities.push_back(entity5);
+	entities.push_back(entity6);
+	entities.push_back(entity7);
 }
 
 
 // --------------------------------------------------------
 // Handle resizing to match the new window size
-//  - Eventually, we'll want to update our 3D camera
+//  - Also updates the camera projection matrix
 // --------------------------------------------------------
 void Game::OnResize()
 {
@@ -259,6 +304,14 @@ void Game::OnResize()
 		scissorRect.right = Window::Width();
 		scissorRect.bottom = Window::Height();
 	}
+
+	// Only calculate projection matrix if there's actually
+	// a camera to use (OnResize can be called before it is
+	// initialized, which leads to some problems).
+	if (camera)
+	{
+		camera->UpdateProjectionMatrix(Window::AspectRatio());
+	}
 }
 
 
@@ -270,6 +323,14 @@ void Game::Update(float deltaTime, float totalTime)
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
+
+	// Loop through entities to make them rotate
+	for (auto e : entities)
+	{
+		e->GetTransform()->Rotate(0.0f, deltaTime, 0.0f);
+	}
+
+	camera->Update(deltaTime);
 }
 
 
@@ -325,6 +386,40 @@ void Game::Draw(float deltaTime, float totalTime)
 			1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
 		Graphics::CommandList->RSSetViewports(1, &viewport);
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		
+		// Set descriptor heap for constant buffer views
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+
+		// Loop to render all entities
+		for (auto e : entities)
+		{
+			// Fill out struct for vertex shader constant buffer data
+			VertexShaderExternalData vsData = {};
+			vsData.World = e->GetTransform()->GetWorldMatrix();
+			vsData.View = camera->GetViewMatrix();
+			vsData.Projection = camera->GetProjectionMatrix();
+
+			// Copy struct to GPU and get back handle to cbuffer view
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = 
+				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)&vsData, sizeof(VertexShaderExternalData));
+
+			// Set the handle using command list
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+
+			// Store pointer to mesh to reduce repetitive GetMesh calls
+			std::shared_ptr<Mesh> mesh = e->GetMesh();
+			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
+			D3D12_INDEX_BUFFER_VIEW ibv = mesh->GetIndexBufferView();
+
+			// Set vertex and index buffers
+			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
+			Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+			// Draw the entity
+			Graphics::CommandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+		}
 	}
 
 	// Present

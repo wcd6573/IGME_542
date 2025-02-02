@@ -1,6 +1,8 @@
-// William Duprey
-// 10/16/24
-// Mesh Class Header
+/*
+William Duprey
+2/2/25
+Mesh Class Header
+*/
 
 #pragma once
 
@@ -30,15 +32,12 @@ public:
 
 	// Getters for the private fields
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetVertexBuffer();
-	D3D12_VERTEX_BUFFER_VIEW GetVBView();
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 	UINT GetIndexCount();
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetIndexBuffer();
-	D3D12_INDEX_BUFFER_VIEW GetIBView();
+	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	UINT GetVertexCount();
 	const char* GetName();
-
-	// Sets buffers and draws the mesh to the screen
-	void SetBuffersAndDraw();
 
 private:
 	// Helper method provided by Chris Cascioli
