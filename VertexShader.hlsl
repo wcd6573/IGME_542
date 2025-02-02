@@ -1,3 +1,15 @@
+/*
+William Duprey
+2/1/25
+Basic Vertex Shader
+*/
+
+cbuffer ExternalData : register(b0)
+{
+    matrix world;
+    matrix view;
+    matrix projection;
+}
 
 // Struct representing a single vertex worth of data
 // - This should match the vertex definition in our C++ code
@@ -12,7 +24,9 @@ struct VertexShaderInput
 	//  |    |                |
 	//  v    v                v
 	float3 localPosition	: POSITION;     // XYZ position
-	float4 color			: COLOR;        // RGBA color
+	float2 uv				: TEXCOORD;		// UV
+	float3 normal			: NORMAL;		// Normal vector
+	float3 tangent			: TANGENT;		// Tangent vector
 };
 
 // Struct representing the data we're sending down the pipeline
@@ -28,7 +42,9 @@ struct VertexToPixel
 	//  |    |                |
 	//  v    v                v
 	float4 screenPosition	: SV_POSITION;	// XYZW position (System Value Position)
-	float4 color			: COLOR;        // RGBA color
+	float2 uv				: TEXCOORD;		// UV
+	float3 normal			: NORMAL;		// Normal vector
+	float3 tangent			: TANGENT;		// Tangent vector
 };
 
 // --------------------------------------------------------
@@ -51,12 +67,15 @@ VertexToPixel main( VertexShaderInput input )
 	// - Each of these components is then automatically divided by the W component, 
 	//   which we're leaving at 1.0 for now (this is more useful when dealing with 
 	//   a perspective projection matrix, which we'll get to in the future).
-	output.screenPosition = float4(input.localPosition, 1.0f);
-
-	// Pass the color through 
-	// - The values will be interpolated per-pixel by the rasterizer
-	// - We don't need to alter it here, but we do need to send it to the pixel shader
-	output.color = input.color;
+	
+    matrix wvp = mul(projection, mul(view, world));
+    output.screenPosition = mul(wvp, float4(input.localPosition, 1.0f));
+    output.uv = input.uv;
+    
+	// Don't have an inverse transpose world matrix 
+	// to properly transform these yet
+	output.normal = input.normal;
+    output.tangent = input.tangent;
 
 	// Whatever we return will make its way through the pipeline to the
 	// next programmable stage we're using (the pixel shader for now)

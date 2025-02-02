@@ -310,7 +310,6 @@ void Game::Draw(float deltaTime, float totalTime)
 			1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
 		Graphics::CommandList->RSSetViewports(1, &viewport);
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-		
 	}
 
 	// Present

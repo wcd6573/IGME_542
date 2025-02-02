@@ -1,8 +1,14 @@
+/*
+William Duprey
+2/1/25
+Basic Pixel Shader
+*/
 
-// Struct representing the data we expect to receive from earlier pipeline stages
-// - Should match the output of our corresponding vertex shader
-// - The name of the struct itself is unimportant
-// - The variable names don't have to match other shaders (just the semantics)
+
+// Struct representing the data we're sending down the pipeline
+// - Should match our pixel shader's input (hence the name: Vertex to Pixel)
+// - At a minimum, we need a piece of data defined tagged as SV_POSITION
+// - The name of the struct itself is unimportant, but should be descriptive
 // - Each variable must have a semantic, which defines its usage
 struct VertexToPixel
 {
@@ -11,8 +17,10 @@ struct VertexToPixel
 	//  |   Name          Semantic
 	//  |    |                |
 	//  v    v                v
-	float4 screenPosition	: SV_POSITION;
-	float4 color			: COLOR;
+    float4 screenPosition : SV_POSITION; // XYZW position (System Value Position)
+    float2 uv : TEXCOORD; // UV
+    float3 normal : NORMAL; // Normal vector
+    float3 tangent : TANGENT; // Tangent vector
 };
 
 // --------------------------------------------------------
@@ -26,9 +34,9 @@ struct VertexToPixel
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {
-	// Just return the input color
+	// Just return white.
 	// - This color (like most values passing through the rasterizer) is 
 	//   interpolated for each pixel between the corresponding vertices 
 	//   of the triangle we're rendering
-	return input.color;
+    return float4(1.0f, 1.0f, 1.0f, 1.0f);
 }
