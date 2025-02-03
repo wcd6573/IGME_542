@@ -374,7 +374,7 @@ void Mesh::CreateBuffers(Vertex* vertices, size_t _vertexCount,
 	indexCount = (UINT)_indexCount;
 
 	// Calculate tangents before copying to buffer
-	CalculateTangents(vertices, _vertexCount, indices, _indexCount);
+	CalculateTangents(vertices, (int)_vertexCount, indices, (int)_indexCount);
 
 	// Create a VERTEX BUFFER
 	// - This holds the vertex data of triangles for a single object
