@@ -7,6 +7,9 @@ Graphics Implementation
 
 #include "Graphics.h"
 #include <dxgi1_6.h>
+#include <vector>
+#include "WICTextureLoader.h"
+#include "ResourceUploadBatch.h"
 
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
@@ -32,11 +35,16 @@ namespace Graphics
 		// Descriptor heap management
 		SIZE_T cbvSrvDescriptorHeapIncrementSize = 0;
 		unsigned int cbvDescriptorOffset = 0;
+		unsigned int srvDescriptorOffset = MaxConstantBuffers; // Assume first SRV is after all CBVs
 
 		// CB upload heap management
 		UINT64 cbUploadHeapSizeInBytes = 0;
 		UINT64 cbUploadHeapOffsetInBytes = 0;
 		void* cbUploadHeapStartAddress = 0;
+
+		// Texture resources we need to keep alive
+		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures;
+		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> cpuSideTextureDescriptorHeaps;
 	}
 }
 
@@ -295,7 +303,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
 		dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Shaders can see these!
 		dhDesc.NodeMask = 0; // Node here means physical GPU - we only have 1 so its index is 0
-		dhDesc.NumDescriptors = MaxConstantBuffers; // How many descriptors will we need?
+		dhDesc.NumDescriptors = MaxConstantBuffers + MaxTextureDescriptors; // How many descriptors will we need?
 		dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // This heap can store CBVs, SRVs, and UAVs
 
 		Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
@@ -675,6 +683,99 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 		// so it can be set as part of the root signature during drawing
 		return gpuHandle;
 	}
+}
+
+
+// --------------------------------------------------------
+// Loads an image file and also creates a corresponding
+// descriptor heap and descriptor. The heap is stored for
+// later (as we'll need the descriptor to stay alive), 
+// but will return the CPU descriptor handle so it can be
+// used immediately for things (like materials).
+// --------------------------------------------------------
+D3D12_CPU_DESCRIPTOR_HANDLE Graphics::LoadTexture(
+	const wchar_t* file, bool generateMips)
+{
+	// Helper function from DXTK for uploading a resource
+	// (like a texture) to the appropriate GPU memory
+	DirectX::ResourceUploadBatch upload(Device.Get());
+	upload.Begin();
+
+	// Attempt to create the texture
+	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
+	DirectX::CreateWICTextureFromFile(Device.Get(), upload, 
+		file, texture.GetAddressOf(), generateMips);
+
+	// Upload and wait for it to finish before returning texture
+	// - Why auto here?
+	auto finish = upload.End(CommandQueue.Get());
+	finish.wait();
+
+	// Now that we have the texture, add to our list and make
+	// a CPU-side descriptor heap just for this texture's SRV.
+	// Note that it would probably be better to put all texture
+	// SRVs into teh same descriptor heap, but we don't know how
+	// many we'll need until they're all loaded and this is a 
+	// quick and dirty implementation.
+	textures.push_back(texture);
+
+	// Create the CPU-SIDE descriptor heap for our descriptor
+	D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
+	dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // Non-shader visible
+	dhDesc.NodeMask = 0;
+	dhDesc.NumDescriptors = 1;
+	dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descHeap;
+	Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(descHeap.GetAddressOf()));
+
+	// Add to our list of heaps (to keep the resource alive)
+	cpuSideTextureDescriptorHeaps.push_back(descHeap);
+
+	// Create the SRV on this descriptor heap
+	// - Using a null description results in the "default" SRV
+	//   (same format, all mips, all array slices, etc.)
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
+	Device->CreateShaderResourceView(texture.Get(), 0, cpuHandle);
+
+	// Return the CPU descriptor handle, which can be used to
+	// copy the descriptor to a shader-visible heap later
+	return cpuHandle;
+}
+
+// --------------------------------------------------------
+// Copy one or more CPU-side (non-shader-visible) descriptors
+// to the final descriptor heap that we use when drawing,
+// and return the handle to the location of the first one.
+// That handle is used to denote the start of a descriptor
+// table, which is needed in the Material class.
+// --------------------------------------------------------
+D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
+	D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
+	unsigned int numDescriptorsToCopy)
+{
+	// Grab the actual heap start on both sides and 
+	// offset to the next open SRV portion
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle =
+		CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle =
+		CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+
+	// We know where to copy these descriptors,
+	// so copy all of them and remember the new offset
+	Device->CopyDescriptorsSimple(
+		numDescriptorsToCopy,
+		cpuHandle,
+		firstDescriptorToCopy,
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvDescriptorOffset += numDescriptorsToCopy;
+
+	// Pass back the GPU handle to the start of this section
+	// in the final CBV/SRV heap so the caller can use it later
+	return gpuHandle;
 }
 
 // --------------------------------------------------------

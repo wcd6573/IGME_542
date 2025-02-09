@@ -1,6 +1,6 @@
 /*
 William Duprey
-1/23/25
+2/9/25
 Graphics Header
 - Starter code provided by Prof. Chris Cascioli.
 */
@@ -25,6 +25,14 @@ namespace Graphics
 	// is 256 bytes or less. Larger buffers are fine, but will
 	// result in fewer buffers in use at any time
 	const unsigned int MaxConstantBuffers = 1000;
+
+	// Maximum number of texture descriptors (SRVs) we can have.
+	// Each material will have a chunk of this.
+	// - If we delayed the creation of this heap until after all
+	//   textures and materials were created, we could come up with
+	//   an exact amount. The following constant ensures we
+	//   (hopefully) never run out of room.
+	const unsigned int MaxTextureDescriptors = 1000;
 
 	// --- GLOBAL VARS ---
 
@@ -79,6 +87,12 @@ namespace Graphics
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
 		void* data,
 		unsigned int dataSizeInBytes);
+
+	// Textures
+	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
+	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
+		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy,
+		unsigned int numDescriptorsToCopy);
 
 	// Command list and synchronization
 	void ResetAllocatorAndCommandList();
