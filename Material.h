@@ -9,6 +9,10 @@ Material Class Header
 #include <wrl/client.h>
 #include <d3d12.h>
 
+// --------------------------------------------------------
+// A class representing a material. Contains methods for 
+// adding textures and finalizing the material.
+// --------------------------------------------------------
 class Material
 {
 public:
