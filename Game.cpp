@@ -272,7 +272,6 @@ void Game::CreateRootSigAndPipelineState()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
-	
 	// --- Load models --- 
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube",
 		FixPath("../../Assets/Models/cube.obj").c_str());
@@ -289,6 +288,9 @@ void Game::CreateGeometry()
 	std::shared_ptr<Mesh> quadDouble = std::make_shared<Mesh>("Quad Double Sided",
 		FixPath("../../Assets/Models/quad_double_sided.obj").c_str());
 	
+	// --- Load textures and create materials ---
+
+
 	// --- Create entities ---
 	std::shared_ptr<GameEntity> entity1 = std::make_shared<GameEntity>(cube);
 	std::shared_ptr<GameEntity> entity2 = std::make_shared<GameEntity>(cylinder);
