@@ -14,6 +14,7 @@ Game Implementation
 #include "BufferStructs.h"
 
 #include <DirectXMath.h>
+#include <WICTextureLoader.h>
 
 // Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
@@ -289,16 +290,28 @@ void Game::CreateGeometry()
 		FixPath("../../Assets/Models/quad_double_sided.obj").c_str());
 	
 	// --- Load textures and create materials ---
-
+	// Load cobblestone textures
+	D3D12_CPU_DESCRIPTOR_HANDLE cobbleAlbedo = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_albedo.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobbleMetal = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_metal.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobbleNormals = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_normals.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobbleRoughness = Graphics::LoadTexture(FixPath(L"../../Assets/Textures/PBR/cobblestone_roughness.png").c_str());
+	
+	// Set up cobblestone material
+	std::shared_ptr<Material> cobble = std::make_shared<Material>(pipelineState);
+	cobble->AddTexture(cobbleAlbedo, 0);
+	cobble->AddTexture(cobbleMetal, 1);
+	cobble->AddTexture(cobbleNormals, 2);
+	cobble->AddTexture(cobbleRoughness, 3);
+	cobble->FinalizeMaterial();
 
 	// --- Create entities ---
-	std::shared_ptr<GameEntity> entity1 = std::make_shared<GameEntity>(cube);
-	std::shared_ptr<GameEntity> entity2 = std::make_shared<GameEntity>(cylinder);
-	std::shared_ptr<GameEntity> entity3 = std::make_shared<GameEntity>(helix);
-	std::shared_ptr<GameEntity> entity4 = std::make_shared<GameEntity>(sphere);
-	std::shared_ptr<GameEntity> entity5 = std::make_shared<GameEntity>(torus);
-	std::shared_ptr<GameEntity> entity6 = std::make_shared<GameEntity>(quad);
-	std::shared_ptr<GameEntity> entity7 = std::make_shared<GameEntity>(quadDouble);
+	std::shared_ptr<GameEntity> entity1 = std::make_shared<GameEntity>(cube, cobble);
+	std::shared_ptr<GameEntity> entity2 = std::make_shared<GameEntity>(cylinder, cobble);
+	std::shared_ptr<GameEntity> entity3 = std::make_shared<GameEntity>(helix, cobble);
+	std::shared_ptr<GameEntity> entity4 = std::make_shared<GameEntity>(sphere, cobble);
+	std::shared_ptr<GameEntity> entity5 = std::make_shared<GameEntity>(torus, cobble);
+	std::shared_ptr<GameEntity> entity6 = std::make_shared<GameEntity>(quad, cobble);
+	std::shared_ptr<GameEntity> entity7 = std::make_shared<GameEntity>(quadDouble, cobble);
 
 	// --- Move entities --- 
 	entity1->GetTransform()->MoveAbsolute(XMFLOAT3(-9.0f, 0.0f, 0.0f));

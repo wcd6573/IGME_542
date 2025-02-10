@@ -19,7 +19,7 @@ public:
 	// Constructor
 	Material(
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState,
-		DirectX::XMFLOAT3 _tint,
+		DirectX::XMFLOAT3 _tint = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f),
 		DirectX::XMFLOAT2 _scale = DirectX::XMFLOAT2(1.0f, 1.0f),
 		DirectX::XMFLOAT2 _offset = DirectX::XMFLOAT2(0.0f, 0.0f));
 
