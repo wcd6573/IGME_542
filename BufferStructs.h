@@ -12,6 +12,7 @@ Buffer Structs Definitions
 // --------------------------------------------------------
 struct VertexShaderExternalData {
 	DirectX::XMFLOAT4X4 World;
+	DirectX::XMFLOAT4X4 WorldInvTrans;
 	DirectX::XMFLOAT4X4 View;
 	DirectX::XMFLOAT4X4 Projection;
 };

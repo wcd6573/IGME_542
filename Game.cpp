@@ -454,6 +454,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			// Fill out struct for vertex shader constant buffer data
 			VertexShaderExternalData vsData = {};
 			vsData.World = e->GetTransform()->GetWorldMatrix();
+			vsData.WorldInvTrans = e->GetTransform()->GetWorldInverseTransposeMatrix();
 			vsData.View = camera->GetViewMatrix();
 			vsData.Projection = camera->GetProjectionMatrix();
 
@@ -464,6 +465,15 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			// Set the handle using command list
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+
+			// Set up the material's pipeline state
+			std::shared_ptr<Material> mat = e->GetMaterial();
+			Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+
+			// Set the SRV descriptor handle for this material's textures
+			// - Assumes that descriptor table 2 is for textures
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(
+				2, mat->GetFinalGPUHandleForSRVs());
 
 			// Store pointer to mesh to reduce repetitive GetMesh calls
 			std::shared_ptr<Mesh> mesh = e->GetMesh();
