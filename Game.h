@@ -13,6 +13,7 @@ Game Header
 
 #include "Camera.h"
 #include "GameEntity.h"
+#include "Lights.h"
 
 class Game
 {
@@ -32,8 +33,9 @@ public:
 private:
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
-	void CreateGeometry();
+	void CreateEntities();
 	void CreateRootSigAndPipelineState();
+	void CreateLights();
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the
@@ -51,5 +53,7 @@ private:
 	// Scene
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
+	std::vector<Light> lights;
+	int lightCount;
 };
 

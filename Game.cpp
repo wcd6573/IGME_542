@@ -23,6 +23,10 @@ Game Implementation
 // For the DirectX Math library
 using namespace DirectX;
 
+// Helper macro for getting a float between min and max
+// - Copied directly from Chris Cascioli's demo code
+#define RandomRange(min, max) (float)rand() / RAND_MAX * (max - min) + min
+
 // --------------------------------------------------------
 // Called once per program, after the window and graphics API
 // are initialized but before the game loop begins
@@ -30,7 +34,8 @@ using namespace DirectX;
 void Game::Initialize()
 {
 	CreateRootSigAndPipelineState();
-	CreateGeometry();
+	CreateEntities();
+	CreateLights();
 
 	// Create camera, and aim it slightly downwards
 	camera = std::make_shared<Camera>(
@@ -267,11 +272,83 @@ void Game::CreateRootSigAndPipelineState()
 	}
 }
 
+void Game::CreateLights()
+{
+	lights.clear();
+	srand((unsigned int)time(0));
+	lightCount = 16;
+
+	// --- Create Lights ---
+	Light directional1 = {};
+	directional1.Type = LIGHT_TYPE_DIRECTIONAL;
+	directional1.Direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	directional1.Color = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	directional1.Intensity = 1.0f;
+
+	// Primary, shadow-casting light
+	Light directional2 = {};
+	directional2.Type = LIGHT_TYPE_DIRECTIONAL;
+	directional2.Direction = XMFLOAT3(0.0f, -1.0f, 0.5f);
+	directional2.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	directional2.Intensity = 1.0f;
+
+	Light directional3 = {};
+	directional3.Type = LIGHT_TYPE_DIRECTIONAL;
+	directional3.Direction = XMFLOAT3(0.5f, -1.0f, -1.0f);
+	directional3.Color = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	directional3.Intensity = 1.0f;
+
+	Light point1 = {};
+	point1.Type = LIGHT_TYPE_POINT;
+	point1.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	point1.Intensity = 1.0f;
+	point1.Position = XMFLOAT3(-1.5f, 0, 0);
+	point1.Range = 10.0f;
+
+	Light point2 = {};
+	point2.Type = LIGHT_TYPE_POINT;
+	point2.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	point2.Intensity = 0.5f;
+	point2.Position = XMFLOAT3(1.5f, 0, 0);
+	point2.Range = 10.0f;
+
+	lights.push_back(directional1);
+	lights.push_back(directional2);
+	lights.push_back(directional3);
+	lights.push_back(point1);
+	lights.push_back(point2);
+
+	// Normalize directions for everything other than point lights
+	for (int i = 0; i < lights.size(); i++)
+	{
+		if (lights[i].Type != LIGHT_TYPE_POINT) {
+			XMStoreFloat3(
+				&lights[i].Direction,
+				XMVector3Normalize(XMLoadFloat3(&lights[i].Direction))
+			);
+		}
+	}
+
+	// Create a bunch of random point lights
+	// - Copied directly from Chris Cascioli's demo code
+	while (lights.size() < MAX_LIGHTS)
+	{
+		Light point = {};
+		point.Type = LIGHT_TYPE_POINT;
+		point.Position = XMFLOAT3(RandomRange(-15.0f, 15.0f), RandomRange(-2.0f, 5.0f), RandomRange(-15.0f, 15.0f));
+		point.Color = XMFLOAT3(RandomRange(0, 1), RandomRange(0, 1), RandomRange(0, 1));
+		point.Range = RandomRange(5.0f, 10.0f);
+		point.Intensity = RandomRange(0.1f, 3.0f);
+	
+		lights.push_back(point);
+	}
+}
+
 
 // --------------------------------------------------------
 // Creates the geometry we're going to draw
 // --------------------------------------------------------
-void Game::CreateGeometry()
+void Game::CreateEntities()
 {
 	// --- Load models --- 
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube",
@@ -412,8 +489,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		Graphics::CommandList->ResourceBarrier(1, &rb);
 
-		// Background color (Cornflower Blue in this case) for clearing
-		float color[] = { 0.4f, 0.6f, 0.75f, 1.0f };
+		// Background color (grey) for clearing
+		float color[] = { 0.3f, 0.3f, 0.3f, 1.0f };
 
 		// Clear the RTV
 		Graphics::CommandList->ClearRenderTargetView(
@@ -451,21 +528,6 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Loop to render all entities
 		for (auto e : entities)
 		{
-			// Fill out struct for vertex shader constant buffer data
-			VertexShaderExternalData vsData = {};
-			vsData.World = e->GetTransform()->GetWorldMatrix();
-			vsData.WorldInvTrans = e->GetTransform()->GetWorldInverseTransposeMatrix();
-			vsData.View = camera->GetViewMatrix();
-			vsData.Projection = camera->GetProjectionMatrix();
-
-			// Copy struct to GPU and get back handle to cbuffer view
-			D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = 
-				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)&vsData, sizeof(VertexShaderExternalData));
-
-			// Set the handle using command list
-			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
-
 			// Set up the material's pipeline state
 			std::shared_ptr<Material> mat = e->GetMaterial();
 			Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
@@ -474,6 +536,42 @@ void Game::Draw(float deltaTime, float totalTime)
 			// - Assumes that descriptor table 2 is for textures
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(
 				2, mat->GetFinalGPUHandleForSRVs());
+
+			// Fill out struct for vertex shader constant buffer data
+			VertexShaderExternalData vsData = {};
+			vsData.World = e->GetTransform()->GetWorldMatrix();
+			vsData.WorldInvTrans = e->GetTransform()->GetWorldInverseTransposeMatrix();
+			vsData.View = camera->GetViewMatrix();
+			vsData.Projection = camera->GetProjectionMatrix();
+
+			// Copy struct to GPU and get back handle to cbuffer view
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = 
+				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)&vsData, sizeof(VertexShaderExternalData));
+
+			// Set the handle using command list
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandleVS);
+
+			// Fill out struct for pixel shader constant buffer data
+			PixelShaderExternalData psData = {};
+			psData.uvScale = mat->GetUVScale();
+			psData.uvOffset = mat->GetUVOffset();
+			psData.cameraPosition = camera->GetTransform()->GetPosition();
+			psData.lightCount = lightCount;
+			memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+
+			// Send this to a chunk of the constant buffer heap
+			// and grab the GPU handle for it so we can set it for this draw
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS =
+				Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&psData), sizeof(PixelShaderExternalData));
+
+			// Set this constant buffer handle
+			// - This assumes that descriptor table 1 is the 
+			//   place to put this particular descriptor. This
+			//   is based on how we set up our root signature.
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(
+				1, cbHandlePS);
 
 			// Store pointer to mesh to reduce repetitive GetMesh calls
 			std::shared_ptr<Mesh> mesh = e->GetMesh();

@@ -86,6 +86,9 @@
     <ClInclude Include="Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Lights.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -98,6 +101,9 @@
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="ShaderIncludes.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Lighting.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
