@@ -1,27 +1,16 @@
 /*
 William Duprey
-2/1/25
+2/9/25
 Basic Pixel Shader
 */
 
+#include "ShaderIncludes.hlsli"
 
-// Struct representing the data we're sending down the pipeline
-// - Should match our pixel shader's input (hence the name: Vertex to Pixel)
-// - At a minimum, we need a piece of data defined tagged as SV_POSITION
-// - The name of the struct itself is unimportant, but should be descriptive
-// - Each variable must have a semantic, which defines its usage
-struct VertexToPixel
-{
-	// Data type
-	//  |
-	//  |   Name          Semantic
-	//  |    |                |
-	//  v    v                v
-    float4 screenPosition : SV_POSITION; // XYZW position (System Value Position)
-    float2 uv : TEXCOORD; // UV
-    float3 normal : NORMAL; // Normal vector
-    float3 tangent : TANGENT; // Tangent vector
-};
+Texture2D Albedo		: register(t0);
+Texture2D MetalnessMap	: register(t1);
+Texture2D NormalMap		: register(t2);
+Texture2D RoughnessMap	: register(t3);
+SamplerState BasicSampler : register(s0);
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
@@ -34,9 +23,8 @@ struct VertexToPixel
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {
-	// Just return white.
-	// - This color (like most values passing through the rasterizer) is 
-	//   interpolated for each pixel between the corresponding vertices 
-	//   of the triangle we're rendering
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	// Sample a texture and return the color
+	float3 albedoColor = Albedo.Sample(BasicSampler, input.uv).rgb;
+	return float4(albedoColor, 1.0f);
+
 }
