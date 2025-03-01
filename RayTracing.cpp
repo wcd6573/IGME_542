@@ -374,6 +374,80 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
         IID_PPV_ARGS(&RaytracingPipelineProperties));
 }
 
+// --------------------------------------------------------
+// Sets up the shader table, which holds shader identifiers
+// and local root signatures for all possible shaders
+// used during raytracing. Note that this is just a big
+// chunk of GPU memory we need to manage ourselves.
+// --------------------------------------------------------
+void RayTracing::CreateShaderTable()
+{
+    // Don't bother if DXR isn't available
+    if (dxrInitialized || !dxrAvailable) { return; }
+
+    // Create the table of shaders and their data to use for rays
+    // 0 - Ray generation shader
+    // 1 - Miss shader
+    // 2 - Closest hit shader
+    // Note: All records must have the same size, so we need to calculate
+    //       the size of the largest possible entry for our program
+    //       - This will be the default (32) + one descriptor table pointer (8)
+    //       - This also must be aligned up to 
+    //         D3D12_RAYTRACING_SHADER_BINDING_TABLE_RECORD_BYTE_ALIGNMENT.
+    UINT64 shaderTableRayGenRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+    UINT64 shaderTableMissRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+    UINT64 shaderTableHitGroupRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES 
+        + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) * 2; // CBV & SRV
+
+    // Align them
+    shaderTableRayGenRecordSize = ALIGN(shaderTableRayGenRecordSize, 
+        D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    shaderTableMissRecordSize = ALIGN(shaderTableMissRecordSize, 
+        D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    shaderTableHitGroupRecordSize = ALIGN(shaderTableHitGroupRecordSize, 
+        D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+
+    // Which is largest?
+    ShaderTableRecordSize = max(shaderTableRayGenRecordSize, 
+        max(shaderTableMissRecordSize, shaderTableHitGroupRecordSize));
+
+    // How big should the table be? 
+    // Need a record for each of our 3 shaders (in the simple demo)
+    UINT64 shaderTableSize = ShaderTableRecordSize * 3;
+    shaderTableSize = ALIGN(shaderTableSize, 
+        D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+    // Create the shader table buffer and map it so we can write to it
+    ShaderTable = Graphics::CreateBuffer(
+        shaderTableSize, 
+        D3D12_HEAP_TYPE_UPLOAD, 
+        D3D12_RESOURCE_STATE_GENERIC_READ);
+    unsigned char* shaderTableData = 0;
+    ShaderTable->Map(0, 0, (void**)&shaderTableData);
+
+    // Mem copy each record in: ray gen, miss, and the overall hit group 
+    // (from CreateRaytracingPipelineState() above)
+    memcpy(shaderTableData, 
+        RaytracingPipelineProperties->GetShaderIdentifier(L"RayGen"), 
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    shaderTableData += ShaderTableRecordSize;
+
+    memcpy(shaderTableData, 
+        RaytracingPipelineProperties->GetShaderIdentifier(L"Miss"), 
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    shaderTableData += ShaderTableRecordSize;
+
+    memcpy(shaderTableData,
+        RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"),
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    
+    // We'll eventually need to memcpy per-object data to the shader table,
+    // but we don't do that yet
+
+    // Unmap
+    ShaderTable->Unmap(0, 0);
+}
+
 void RayTracing::ResizeOutputUAV(unsigned int outputWidth, unsigned int outputHeight)
 {
 }
@@ -387,10 +461,6 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 }
 
 void RayTracing::CreateTopLevelAccelerationStructureForScene()
-{
-}
-
-void RayTracing::CreateShaderTable()
 {
 }
 
