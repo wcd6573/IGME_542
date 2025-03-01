@@ -203,6 +203,177 @@ void RayTracing::CreateRaytracingRootSignatures()
     }
 }
 
+// --------------------------------------------------------
+// Creates the raytracing pipeline state, which holds
+// information about the shaders, payload, root signatures, etc.
+// --------------------------------------------------------
+void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile)
+{
+    // Don't bother if DXR isn't available
+    if (dxrInitialized || !dxrAvailable) { return; }
+
+    // Read the pre-compiled shader library to a blob
+    Microsoft::WRL::ComPtr<ID3DBlob> blob;
+    D3DReadFileToBlob(raytracingShaderLibraryFile.c_str(), blob.GetAddressOf());
+
+    // There are ten subobjects that make up our raytracing pipeline object:
+    // - Ray generation shader
+    // - Miss shader
+    // - Closest hit shader
+    // - Hit group (group of all "hit"-type shaders, which is just "closest hit" for us
+    // - Payload configuration
+    // - Association of payload to shaders
+    // - Local root signature
+    // - Association of local root sig to shader
+    // - Global root signature
+    // - Overall pipeline config
+    D3D12_STATE_SUBOBJECT subobjects[10] = {};
+
+    // === Ray generation shader ===
+    D3D12_EXPORT_DESC rayGenExportDesc = {};
+    rayGenExportDesc.Name = L"RayGen";
+    rayGenExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+
+    D3D12_DXIL_LIBRARY_DESC rayGenLibDesc = {};
+    rayGenLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
+    rayGenLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
+    rayGenLibDesc.NumExports = 1;
+    rayGenLibDesc.pExports = &rayGenExportDesc;
+
+    D3D12_STATE_SUBOBJECT rayGenSubObj = {};
+    rayGenSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+    rayGenSubObj.pDesc = &rayGenLibDesc;
+
+    subobjects[0] = rayGenSubObj;
+
+    // === Miss shader ===
+    D3D12_EXPORT_DESC missExportDesc = {};
+    missExportDesc.Name = L"Miss";
+    missExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+
+    D3D12_DXIL_LIBRARY_DESC missLibDesc = {};
+    missLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
+    missLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
+    missLibDesc.NumExports = 1;
+    missLibDesc.pExports = &missExportDesc;
+
+    D3D12_STATE_SUBOBJECT missSubObj = {};
+    missSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+    missSubObj.pDesc = &missLibDesc;
+
+    subobjects[1] = missSubObj;
+
+    // === Closest hit shader ===
+    D3D12_EXPORT_DESC closestHitExportDesc = {};
+    closestHitExportDesc.Name = L"ClosestHit";
+    closestHitExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+
+    D3D12_DXIL_LIBRARY_DESC closestHitLibDesc = {};
+    closestHitLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
+    closestHitLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
+    closestHitLibDesc.NumExports = 1;
+    closestHitLibDesc.pExports = &closestHitExportDesc;
+
+    D3D12_STATE_SUBOBJECT closestHitSubObj = {};
+    closestHitSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+    closestHitSubObj.pDesc = &closestHitLibDesc;
+
+    subobjects[2] = closestHitSubObj;
+
+    // === Hit group ===
+    D3D12_HIT_GROUP_DESC hitGroupDesc = {};
+    hitGroupDesc.ClosestHitShaderImport = L"ClosestHit";
+    hitGroupDesc.HitGroupExport = L"HitGroup";
+
+    D3D12_STATE_SUBOBJECT hitGroup = {};
+    hitGroup.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+    hitGroup.pDesc = &hitGroupDesc;
+
+    subobjects[3] = hitGroup;
+
+    // === Shader config ===
+    D3D12_RAYTRACING_SHADER_CONFIG shaderConfigDesc = {};
+    // Assuming float3 color, and float2 for barycentric coordinates
+    shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3);
+    shaderConfigDesc.MaxAttributeSizeInBytes = sizeof(DirectX::XMFLOAT2);
+
+    D3D12_STATE_SUBOBJECT shaderConfigSubObj = {};
+    shaderConfigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+    shaderConfigSubObj.pDesc = &shaderConfigDesc;
+
+    subobjects[4] = shaderConfigSubObj;
+
+    // === Association - Payload and shaders ===
+    // Names of shaders that use the payload
+    const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
+    
+    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderPayloadAssociation = {};
+    shaderPayloadAssociation.NumExports = ARRAYSIZE(payloadShaderNames);
+    shaderPayloadAssociation.pExports = payloadShaderNames;
+    shaderPayloadAssociation.pSubobjectToAssociate = &subobjects[4]; // Payload config above
+
+    D3D12_STATE_SUBOBJECT shaderPayloadAssociationObject = {};
+    shaderPayloadAssociationObject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+    shaderPayloadAssociationObject.pDesc = &shaderPayloadAssociation;
+
+    subobjects[5] = shaderPayloadAssociationObject;
+
+    // === Local root signature ===
+    D3D12_STATE_SUBOBJECT localRootSigSubObj = {};
+    localRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+    localRootSigSubObj.pDesc = LocalRaytracingRootSig.GetAddressOf();
+
+    subobjects[6] = localRootSigSubObj;
+
+    // === Association - Shaders and local root sig ===
+    // Names of shaders that use the root sig
+    const wchar_t* rootSigShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
+
+    // Add a state subobject for the association between
+    // the RayGen shader and the local root signature
+    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rootSigAssociation = {};
+    rootSigAssociation.NumExports = ARRAYSIZE(rootSigShaderNames);
+    rootSigAssociation.pExports = rootSigShaderNames;
+    rootSigAssociation.pSubobjectToAssociate = &subobjects[6]; // Root sig above
+
+    D3D12_STATE_SUBOBJECT rootSigAssociationSubObj = {};
+    rootSigAssociationSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+    rootSigAssociationSubObj.pDesc = &rootSigAssociation;
+
+    subobjects[7] = rootSigAssociationSubObj;
+
+    // === Global root sig ===
+    D3D12_STATE_SUBOBJECT globalRootSigSubObj = {};
+    globalRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+    rootSigAssociationSubObj.pDesc = GlobalRaytracingRootSig.GetAddressOf();
+
+    subobjects[8] = globalRootSigSubObj;
+
+    // === Pipeline config ===
+    // Add a state subobject for the ray tracing pipeline config
+    D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig = {};
+    pipelineConfig.MaxTraceRecursionDepth = D3D12_RAYTRACING_MAX_DECLARABLE_TRACE_RECURSION_DEPTH;
+
+    D3D12_STATE_SUBOBJECT pipelineConfigSubObj = {};
+    pipelineConfigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+    rootSigAssociationSubObj.pDesc = &pipelineConfig;
+
+    subobjects[9] = pipelineConfigSubObj;
+
+    // === Finalize state ===
+    D3D12_STATE_OBJECT_DESC raytracingPipelineDesc = {};
+    raytracingPipelineDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+    raytracingPipelineDesc.NumSubobjects = ARRAYSIZE(subobjects);
+    raytracingPipelineDesc.pSubobjects = subobjects;
+
+    // Create the state and also query it for its properties
+    DXRDevice->CreateStateObject(
+        &raytracingPipelineDesc, 
+        IID_PPV_ARGS(RaytracingPipelineStateObject.GetAddressOf()));
+    RaytracingPipelineStateObject->QueryInterface(
+        IID_PPV_ARGS(&RaytracingPipelineProperties));
+}
+
 void RayTracing::ResizeOutputUAV(unsigned int outputWidth, unsigned int outputHeight)
 {
 }
@@ -216,10 +387,6 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 }
 
 void RayTracing::CreateTopLevelAccelerationStructureForScene()
-{
-}
-
-void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile)
 {
 }
 
