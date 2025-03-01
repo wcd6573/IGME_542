@@ -767,6 +767,111 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene()
 }
 
 
-void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
+// --------------------------------------------------------
+// Performs the actual raytracing work.
+// --------------------------------------------------------
+void RayTracing::Raytrace(std::shared_ptr<Camera> camera, 
+    Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
 {
+    if (!dxrInitialized || !dxrAvailable) { return; }
+
+    // Transition the output-related resources to the proper states
+    D3D12_RESOURCE_BARRIER outputBarriers[2] = {};
+    {
+        // Back buffer needs to be COPY DESTINATION (for later)
+        outputBarriers[0].Transition.pResource = currentBackBuffer.Get();
+        outputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        outputBarriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+        outputBarriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+        // Raytracing output needs to be unordered access for raytracing
+        outputBarriers[1].Transition.pResource = RaytracingOutput.Get();
+        outputBarriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        outputBarriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        outputBarriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+        DXRCommandList->ResourceBarrier(2, outputBarriers);
+    }
+
+    // Grab and fill a constant buffer
+    RaytracingSceneData sceneData = {};
+    sceneData.cameraPosition = camera->GetTransform()->GetPosition();
+
+    DirectX::XMFLOAT4X4 view = camera->GetViewMatrix();
+    DirectX::XMFLOAT4X4 proj = camera->GetProjectionMatrix();
+    DirectX::XMMATRIX v = DirectX::XMLoadFloat4x4(&view);
+    DirectX::XMMATRIX p = DirectX::XMLoadFloat4x4(&proj);
+    DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(v, p);
+    DirectX::XMStoreFloat4x4(&sceneData.inverseViewProjection, XMMatrixInverse(0, vp));
+
+    D3D12_GPU_DESCRIPTOR_HANDLE cbuffer = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+        &sceneData, sizeof(RaytracingSceneData));
+
+    // ACTUAL RAYTRACING HERE
+    {
+        // Set the CBV/SRV/UAV descriptor heap
+        ID3D12DescriptorHeap* heap[] = { Graphics::CBVSRVDescriptorHeap.Get() };
+        DXRCommandList->SetDescriptorHeaps(1, heap);
+
+        // Set the pipeline state for raytracing
+        // Note the "1" at the end of the function call for pipeline state
+        DXRCommandList->SetPipelineState1(RaytracingPipelineStateObject.Get());
+
+        // Set the global root sig so we can also set descriptor tables
+        DXRCommandList->SetComputeRootSignature(GlobalRaytracingRootSig.Get());
+        DXRCommandList->SetComputeRootDescriptorTable(0, 
+            RaytracingOutputUAV_GPU);   // First table is just output UAV
+        DXRCommandList->SetComputeRootShaderResourceView(1, // Second is SRV for accel structure
+            TLAS->GetGPUVirtualAddress());                  //(as root SRV, no table needed)
+        DXRCommandList->SetComputeRootDescriptorTable(2, cbuffer);  // Third is CBV
+
+        // Dispatch rays
+        D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
+
+        // Ray gen shader location in shader table
+        dispatchDesc.RayGenerationShaderRecord.StartAddress = ShaderTable->GetGPUVirtualAddress();
+        dispatchDesc.RayGenerationShaderRecord.SizeInBytes = ShaderTableRecordSize;
+
+        // Miss shader location in shader table (we could have a 
+        // whole sub-table of just these, but only 1 for this demo)
+        dispatchDesc.MissShaderTable.StartAddress = ShaderTable->GetGPUVirtualAddress() 
+            + ShaderTableRecordSize;    // Offset by 1 record
+        // Assuming sizes here (might want to verify later)
+        dispatchDesc.MissShaderTable.SizeInBytes = ShaderTableRecordSize;
+        dispatchDesc.MissShaderTable.StrideInBytes = ShaderTableRecordSize;
+
+        // Hit group location in shader table (we could have multiple
+        // types of hit shaders, but only one for this demo)
+        dispatchDesc.HitGroupTable.StartAddress = ShaderTable->GetGPUVirtualAddress()
+            + ShaderTableRecordSize * 2;    // Offset by 2 records
+        // Assuming sizes here (might want to verify later)
+        dispatchDesc.HitGroupTable.SizeInBytes = ShaderTableRecordSize;
+        dispatchDesc.HitGroupTable.StrideInBytes = ShaderTableRecordSize;
+
+        // Set the number of rays to match screen size
+        dispatchDesc.Width = Window::Width();
+        dispatchDesc.Height = Window::Height();
+        dispatchDesc.Depth = 1; // Can have a 3D grid, but we don't need that
+
+        // GO!
+        DXRCommandList->DispatchRays(&dispatchDesc);
+    }
+
+    // Final copy
+    {
+        // Transition the raytracing output to COPY SOURCE
+        outputBarriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        outputBarriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        DXRCommandList->ResourceBarrier(1, &outputBarriers[1]);
+
+        // Copy the raytracing output into the back buffer
+        DXRCommandList->CopyResource(currentBackBuffer.Get(), RaytracingOutput.Get());
+
+        // Back buffer back to PRESENT
+        outputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+        outputBarriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        DXRCommandList->ResourceBarrier(1, &outputBarriers[0]);
+    }
+
+    // Assuming command list will be executed elsewhere
 }
