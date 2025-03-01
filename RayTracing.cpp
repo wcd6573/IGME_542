@@ -525,16 +525,157 @@ void RayTracing::ResizeOutputUAV(
 }
 
 
-void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
-{
-}
-
-
+// --------------------------------------------------------
+// Creates a BLAS for a particular mesh.
+// 
+// NOTE: This demo assumes exactly one BLAS, so running this
+// method more than once is not advised!
+// --------------------------------------------------------
 void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 {
+    // Don't bother if DXR isn't available
+    if (!dxrAvailable) { return; }
+
+    // Create the Bottom Level accel structure for this mesh
+    // Note: Currently, this is on the one and only BLAS in our simple implementation!
+
+    // Describe the geometry data we intend to store in this BLAS
+    D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+    geometryDesc.Triangles.VertexBuffer.StartAddress 
+        = mesh->GetVertexBuffer()->GetGPUVirtualAddress();
+    geometryDesc.Triangles.VertexBuffer.StrideInBytes 
+        = mesh->GetVertexBufferView().StrideInBytes;
+    geometryDesc.Triangles.VertexCount = static_cast<UINT>(mesh->GetVertexCount());
+    geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+    geometryDesc.Triangles.IndexBuffer = mesh->GetIndexBuffer()->GetGPUVirtualAddress();
+    geometryDesc.Triangles.IndexFormat = mesh->GetIndexBufferView().Format;
+    geometryDesc.Triangles.IndexCount = static_cast<UINT>(mesh->GetIndexCount());
+    geometryDesc.Triangles.Transform3x4 = 0;
+    // Performance boost when dealing with opaque geometry
+    geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE; 
+
+    // Describe our overall input so we can get sizing info
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS accelStructInputs = {};
+    accelStructInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+    accelStructInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    accelStructInputs.pGeometryDescs = &geometryDesc;
+    accelStructInputs.NumDescs = 1;
+    accelStructInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO accelStructPrebuildInfo = {};
+    DXRDevice->GetRaytracingAccelerationStructurePrebuildInfo(
+        &accelStructInputs, &accelStructPrebuildInfo);
+
+    // Handle alignment requirements ourselves
+    accelStructPrebuildInfo.ScratchDataSizeInBytes = ALIGN(
+        accelStructPrebuildInfo.ScratchDataSizeInBytes, 
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+    accelStructPrebuildInfo.ResultDataMaxSizeInBytes = ALIGN(
+        accelStructPrebuildInfo.ResultDataMaxSizeInBytes, 
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+
+    // Create a scratch buffer so teh device has a place to temporarily store data
+    BLASScratchBuffer = Graphics::CreateBuffer(
+        accelStructPrebuildInfo.ScratchDataSizeInBytes,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, 
+            D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+
+    // Create the final buffer for the BLAS
+    BLAS = Graphics::CreateBuffer(
+        accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, 
+            D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+    
+    // Describe the final BLAS and set up the build
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+    buildDesc.Inputs = accelStructInputs;
+    buildDesc.ScratchAccelerationStructureData = BLASScratchBuffer->GetGPUVirtualAddress();
+    buildDesc.DestAccelerationStructureData = BLAS->GetGPUVirtualAddress();
+    DXRCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, 0);
+
+    // Set up a barrier to wait until the BLAS is actually build to proceed
+    D3D12_RESOURCE_BARRIER blasBarrier = {};
+    blasBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    blasBarrier.UAV.pResource = BLAS.Get();
+    blasBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    DXRCommandList->ResourceBarrier(1, &blasBarrier);
+
+    // Create two SRVs for the index and vertex buffers
+    // Note: These must come one after the other in the descriptor heap,
+    //       and index must come first. This is due to the way we've set
+    //       up the root signature (expects a table of these).
+    D3D12_CPU_DESCRIPTOR_HANDLE ib_cpu; 
+    D3D12_CPU_DESCRIPTOR_HANDLE vb_cpu;
+    Graphics::ReserveDescriptorHeapSlot(&ib_cpu, &indexBufferSRV);
+    Graphics::ReserveDescriptorHeapSlot(&vb_cpu, &vertexBufferSRV);
+
+    // Index buffer SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC indexSRVDesc = {};
+    indexSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    indexSRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    indexSRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    indexSRVDesc.Buffer.StructureByteStride = 0;
+    indexSRVDesc.Buffer.FirstElement = 0;
+    indexSRVDesc.Buffer.NumElements = (UINT)mesh->GetIndexCount();
+    indexSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    DXRDevice->CreateShaderResourceView(
+        mesh->GetIndexBuffer().Get(), 
+        &indexSRVDesc, 
+        ib_cpu);
+
+    // Vertex buffer SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC vertexSRVDesc = {};
+    vertexSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    vertexSRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    vertexSRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    vertexSRVDesc.Buffer.StructureByteStride = 0;
+    vertexSRVDesc.Buffer.FirstElement = 0;
+    vertexSRVDesc.Buffer.NumElements = (UINT)((  // How many floats total?
+        mesh->GetVertexCount() * sizeof(Vertex)) / sizeof(float)); 
+    vertexSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    DXRDevice->CreateShaderResourceView(
+        mesh->GetVertexBuffer().Get(), 
+        &vertexSRVDesc, 
+        vb_cpu);
+    
+    // We need to put this mesh's SRVs into the shader table
+    // - In a larger application, each unique mesh will need
+    //   its own entry in the shader table
+    unsigned char* tablePointer = 0;
+    ShaderTable->Map(0, 0, (void**)&tablePointer);
+    {
+        // Get pas the raygen and miss shaders in the shader table
+        tablePointer += ShaderTableRecordSize + ShaderTableRecordSize;
+
+        // In the shader table, we need to get past the identifier
+        tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+
+        // Memcpy the index buffer's SRV to the table
+        // - We're assuming the index buffer SRV is IMMEDIATELY
+        //   followed by the vertex buffer SRV in the heap
+        memcpy(
+            tablePointer,
+            &indexBufferSRV,
+            sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+    }
+
+    // All done
+    ShaderTable->Unmap(0, 0);
 }
 
 
 void RayTracing::CreateTopLevelAccelerationStructureForScene()
+{
+}
+
+
+void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
 {
 }
