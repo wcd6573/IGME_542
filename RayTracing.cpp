@@ -374,6 +374,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
         IID_PPV_ARGS(&RaytracingPipelineProperties));
 }
 
+
 // --------------------------------------------------------
 // Sets up the shader table, which holds shader identifiers
 // and local root signatures for all possible shaders
@@ -448,22 +449,92 @@ void RayTracing::CreateShaderTable()
     ShaderTable->Unmap(0, 0);
 }
 
-void RayTracing::ResizeOutputUAV(unsigned int outputWidth, unsigned int outputHeight)
+// --------------------------------------------------------
+// Creates a texture & wraps it with an Unordered Access View,
+// allowing shaders to directly write into this memory. The
+// data in this texture will later be directly copied to the
+// back buffer after raytracing is complete.
+// --------------------------------------------------------
+void RayTracing::CreateRaytracingOutputUAV(unsigned int width, unsigned int height)
 {
+    // Default heap for output buffer
+    D3D12_HEAP_PROPERTIES heapDesc = {};
+    heapDesc.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapDesc.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapDesc.CreationNodeMask = 0;
+    heapDesc.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapDesc.VisibleNodeMask = 0;
+
+    // Describe the final output resource (UAV)
+    D3D12_RESOURCE_DESC desc = {};
+    desc.DepthOrArraySize = 1;
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    desc.Width = width;
+    desc.Height = height;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.MipLevels = 1;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+
+    DXRDevice->CreateCommittedResource(
+        &heapDesc,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE,
+        0,
+        IID_PPV_ARGS(RaytracingOutput.GetAddressOf()));
+
+    // Do we have a UAV already?
+    if (!RaytracingOutputUAV_GPU.ptr)
+    {
+        // Nope, so reserve a spot
+        Graphics::ReserveDescriptorHeapSlot(
+            &RaytracingOutputUAV_CPU,
+            &RaytracingOutputUAV_GPU);
+    }
+
+    // Set up hte UAV
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+    DXRDevice->CreateUnorderedAccessView(
+        RaytracingOutput.Get(),
+        0, 
+        &uavDesc, 
+        RaytracingOutputUAV_CPU);
 }
+
+
+// --------------------------------------------------------
+// If the window size changes, so too should the output texture.
+// --------------------------------------------------------
+void RayTracing::ResizeOutputUAV(
+    unsigned int outputWidth, 
+    unsigned int outputHeight)
+{
+    if (!dxrInitialized || !dxrAvailable) { return; }
+
+    // Wait for the GPU to be done
+    Graphics::WaitForGPU();
+
+    // Reset and re-create the buffer
+    RaytracingOutput.Reset();
+    CreateRaytracingOutputUAV(outputWidth, outputHeight);
+}
+
 
 void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
 {
 }
 
+
 void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 {
 }
 
-void RayTracing::CreateTopLevelAccelerationStructureForScene()
-{
-}
 
-void RayTracing::CreateRaytracingOutputUAV(unsigned int width, unsigned int height)
+void RayTracing::CreateTopLevelAccelerationStructureForScene()
 {
 }
