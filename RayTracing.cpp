@@ -671,8 +671,99 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 }
 
 
+// --------------------------------------------------------
+// Creates the top level accel structure, which can be made
+// up of one or more BLAS instances, each with their own
+// unique transform. This demo uses exactly one BLAS instance.
+// --------------------------------------------------------
 void RayTracing::CreateTopLevelAccelerationStructureForScene()
 {
+    // Don't bother if DXR isn't available or the AS is finalized already
+    if (!dxrAvailable) { return; }
+
+    // Describe the BLAS instance(s) that make up the TLAS
+    D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
+    instanceDesc.InstanceID = 0;
+    instanceDesc.InstanceContributionToHitGroupIndex = 0;
+    instanceDesc.InstanceMask = 0xFF;
+    instanceDesc.Transform[0][0] = 1;  // Setting simple identity matrix
+    instanceDesc.Transform[1][1] = 1;
+    instanceDesc.Transform[2][2] = 1;
+    instanceDesc.AccelerationStructure = BLAS->GetGPUVirtualAddress();
+    instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+    // The instance description actually needs to be in a buffer
+    // on the GPU, so we need to make that buffer and toss it in
+    // there ourselves (and keep the pointer long enough to finish the work)
+    TLASInstanceDescBuffer = Graphics::CreateBuffer(
+        sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+        D3D12_HEAP_TYPE_UPLOAD,
+        D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    // Copy the description into the new buffer
+    unsigned char* mapped = 0;
+    TLASInstanceDescBuffer->Map(0, 0, (void**)&mapped);
+    memcpy(mapped, &instanceDesc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+    TLASInstanceDescBuffer->Unmap(0, 0);
+
+    // Describe our overall input so we can get sizing info
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS accelStructInputs = {};
+    accelStructInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+    accelStructInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    accelStructInputs.InstanceDescs = TLASInstanceDescBuffer->GetGPUVirtualAddress();
+    accelStructInputs.NumDescs = 1;
+    accelStructInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO accelStructPrebuildInfo = {};
+    DXRDevice->GetRaytracingAccelerationStructurePrebuildInfo(
+        &accelStructInputs, &accelStructPrebuildInfo);
+
+    // Handle alignment requirements ourselves
+    accelStructPrebuildInfo.ScratchDataSizeInBytes = ALIGN(
+        accelStructPrebuildInfo.ScratchDataSizeInBytes, 
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+    accelStructPrebuildInfo.ResultDataMaxSizeInBytes = ALIGN(
+        accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+
+    // Create a scratch buffer so the device has a place to temporarily hold data
+    TLASScratchBuffer = Graphics::CreateBuffer(
+        accelStructPrebuildInfo.ScratchDataSizeInBytes,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, 
+            D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+    
+    // Create the final buffer for the TLAS
+    TLAS = Graphics::CreateBuffer(
+        accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, 
+            D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+
+    // Describe the final TLAS and set up the build
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+    buildDesc.Inputs = accelStructInputs;
+    buildDesc.ScratchAccelerationStructureData = TLASScratchBuffer->GetGPUVirtualAddress();
+    buildDesc.DestAccelerationStructureData = TLAS->GetGPUVirtualAddress();
+    DXRCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, 0);
+
+    // Set up a barrier to wait until the TLAS is actually build to proceed
+    // Note: Probably unnecessary because we're about to execute and wait below,
+    //       but keeping this here in the event we adjust when we execute.
+    D3D12_RESOURCE_BARRIER tlasBarrier = {};
+    tlasBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    tlasBarrier.UAV.pResource = TLAS.Get();
+    tlasBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    DXRCommandList->ResourceBarrier(1, &tlasBarrier);
+
+    // All done - execute, wait, and reset command list
+    Graphics::CloseAndExecuteCommandList();
+    Graphics::WaitForGPU();
+    Graphics::ResetAllocatorAndCommandList(/*0*/);
 }
 
 
