@@ -230,18 +230,6 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Present
 	{
-		/*
-		// Transition back to present
-		D3D12_RESOURCE_BARRIER rb = {};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentBackBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		Graphics::CommandList->ResourceBarrier(1, &rb);
-		*/
-
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
 
