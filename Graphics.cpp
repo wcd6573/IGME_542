@@ -797,7 +797,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
 {
 	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
 
-	// Describe teh heap
+	// Describe the heap
 	D3D12_HEAP_PROPERTIES heapDesc = {};
 	heapDesc.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapDesc.CreationNodeMask = 1;
@@ -811,6 +811,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
 	desc.DepthOrArraySize = 1;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Flags = flags;
 	desc.Height = 1;
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	desc.MipLevels = 1;

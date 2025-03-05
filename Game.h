@@ -34,7 +34,6 @@ private:
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void CreateEntities();
-	void CreateRootSigAndPipelineState();
 	void CreateLights();
 
 	// Note the usage of ComPtr below
@@ -42,16 +41,9 @@ private:
 	//     Component Object Model, which DirectX objects do
 	//  - More info here: https://github.com/Microsoft/DirectXTK/wiki/ComPtr
 
-	// Pipeline
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
-
-	// Other graphics data
-	D3D12_VIEWPORT viewport{};
-	D3D12_RECT scissorRect{};
-
 	// Scene
 	std::shared_ptr<Camera> camera;
+	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	int lightCount;

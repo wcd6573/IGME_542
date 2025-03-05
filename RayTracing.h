@@ -18,7 +18,7 @@ Raytracing Header
 namespace RayTracing 
 {
 	// --- GLOBAL VARS ---
-	// Raytracing-specifc versions of base DX12 objects
+	// Raytracing-specific versions of base DX12 objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device5> DXRDevice;
 	inline Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> DXRCommandList;
 

@@ -345,7 +345,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     // === Global root sig ===
     D3D12_STATE_SUBOBJECT globalRootSigSubObj = {};
     globalRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-    rootSigAssociationSubObj.pDesc = GlobalRaytracingRootSig.GetAddressOf();
+    globalRootSigSubObj.pDesc = GlobalRaytracingRootSig.GetAddressOf();
 
     subobjects[8] = globalRootSigSubObj;
 
@@ -356,7 +356,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
     D3D12_STATE_SUBOBJECT pipelineConfigSubObj = {};
     pipelineConfigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-    rootSigAssociationSubObj.pDesc = &pipelineConfig;
+    pipelineConfigSubObj.pDesc = &pipelineConfig;
 
     subobjects[9] = pipelineConfigSubObj;
 
@@ -575,7 +575,7 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
         accelStructPrebuildInfo.ResultDataMaxSizeInBytes, 
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 
-    // Create a scratch buffer so teh device has a place to temporarily store data
+    // Create a scratch buffer so the device has a place to temporarily store data
     BLASScratchBuffer = Graphics::CreateBuffer(
         accelStructPrebuildInfo.ScratchDataSizeInBytes,
         D3D12_HEAP_TYPE_DEFAULT,
@@ -751,7 +751,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene()
     buildDesc.DestAccelerationStructureData = TLAS->GetGPUVirtualAddress();
     DXRCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, 0);
 
-    // Set up a barrier to wait until the TLAS is actually build to proceed
+    // Set up a barrier to wait until the TLAS is actually built to proceed
     // Note: Probably unnecessary because we're about to execute and wait below,
     //       but keeping this here in the event we adjust when we execute.
     D3D12_RESOURCE_BARRIER tlasBarrier = {};
@@ -776,22 +776,22 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera,
     if (!dxrInitialized || !dxrAvailable) { return; }
 
     // Transition the output-related resources to the proper states
-    D3D12_RESOURCE_BARRIER outputBarriers[2] = {};
-    {
-        // Back buffer needs to be COPY DESTINATION (for later)
-        outputBarriers[0].Transition.pResource = currentBackBuffer.Get();
-        outputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        outputBarriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-        outputBarriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	D3D12_RESOURCE_BARRIER outputBarriers[2] = {};
+	{
+		// Back buffer needs to be COPY DESTINATION (for later)
+		outputBarriers[0].Transition.pResource = currentBackBuffer.Get();
+		outputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		outputBarriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+		outputBarriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-        // Raytracing output needs to be unordered access for raytracing
-        outputBarriers[1].Transition.pResource = RaytracingOutput.Get();
-        outputBarriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        outputBarriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        outputBarriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		// Raytracing output needs to be unordered access for raytracing
+		outputBarriers[1].Transition.pResource = RaytracingOutput.Get();
+		outputBarriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		outputBarriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		outputBarriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-        DXRCommandList->ResourceBarrier(2, outputBarriers);
-    }
+		DXRCommandList->ResourceBarrier(2, outputBarriers);
+	}
 
     // Grab and fill a constant buffer
     RaytracingSceneData sceneData = {};
