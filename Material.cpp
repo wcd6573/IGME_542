@@ -11,11 +11,11 @@ Material Class Implementation
 // ----------------------------- CONSTRUCTOR ------------------------------- //
 ///////////////////////////////////////////////////////////////////////////////
 Material::Material(
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState, 
+	//Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState, 
 	DirectX::XMFLOAT3 _tint, 
 	DirectX::XMFLOAT2 _scale, 
 	DirectX::XMFLOAT2 _offset) 
-	: pipelineState(_pipelineState),
+	: //pipelineState(_pipelineState),
 	  colorTint(_tint),
 	  uvScale(_scale),
 	  uvOffset(_offset),
@@ -32,7 +32,7 @@ Material::Material(
 ///////////////////////////////////////////////////////////////////////////////
 // ------------------------------- GETTERS --------------------------------- //
 ///////////////////////////////////////////////////////////////////////////////
-Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState() { return pipelineState; }
+//Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState() { return pipelineState; }
 DirectX::XMFLOAT3 Material::GetColorTint() { return colorTint; }
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
@@ -41,7 +41,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() { return finalG
 ///////////////////////////////////////////////////////////////////////////////
 // ------------------------------- SETTERS --------------------------------- //
 ///////////////////////////////////////////////////////////////////////////////
-void Material::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState) { pipelineState = _pipelineState; }
+//void Material::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState) { pipelineState = _pipelineState; }
 void Material::SetColorTint(DirectX::XMFLOAT3 _tint) { colorTint = _tint; }
 void Material::SetUVScale(DirectX::XMFLOAT2 _scale) { uvScale = _scale; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 _offset) { uvOffset = _offset; }

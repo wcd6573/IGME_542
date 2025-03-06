@@ -47,7 +47,6 @@ void Game::Initialize()
 	camera = std::make_shared<Camera>(
 		XMFLOAT3(-0.5f, 6.25f, -15.5f),
 		Window::AspectRatio());
-	camera->GetTransform()->SetRotation(0.366f, 0.0f, 0.0f);
 
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
@@ -73,7 +72,6 @@ Game::~Game()
 void Game::CreateLights()
 {
 	lights.clear();
-	srand((unsigned int)time(0));
 	lightCount = 16;
 
 	// --- Create Lights ---
@@ -164,17 +162,52 @@ void Game::CreateEntities()
 	std::shared_ptr<Mesh> quadDouble = std::make_shared<Mesh>("Quad Double Sided",
 		FixPath("../../Assets/Models/quad_double_sided.obj").c_str());
 
-	meshes.push_back(cube);
-	meshes.push_back(cylinder);
-	meshes.push_back(helix);
-	meshes.push_back(sphere);
-	meshes.push_back(torus);
-	meshes.push_back(quad);
-	meshes.push_back(quadDouble);
+	meshes.push_back(cube);			// 0
+	meshes.push_back(cylinder);		// 1
+	meshes.push_back(helix);		// 2
+	meshes.push_back(sphere);		// 3
+	meshes.push_back(torus);		// 4
+	meshes.push_back(quad);			// 5
+	meshes.push_back(quadDouble);	// 6
+
+	// --- Create entities ---
+	// Make a big, gray cube
+	std::shared_ptr<GameEntity> e1 = std::make_shared<GameEntity>(
+		meshes[0],
+		std::make_shared<Material>(XMFLOAT3(0.5f, 0.5f, 0.5f)));
+	e1->GetTransform()->SetScale(40.0f, 40.0f, 40.0f);
+	e1->GetTransform()->SetPosition(0.0f, -40.0f, 0.0f);
+	entities.push_back(e1);
+
+	// Seed random before we start doing anything
+	srand((unsigned int)time(0));
+
+	// Loop to make a bunch of random entities at random positions
+	for (unsigned int i = 1; i < 50; i++)
+	{
+		// Make a new entity with a random color
+		entities.push_back(std::make_shared<GameEntity>(
+			meshes[static_cast<int>(RandomRange(0.0f, 4.99f))],
+			std::make_shared<Material>(XMFLOAT3(
+				RandomRange(0.0f, 1.0f),		// R
+				RandomRange(0.0f, 1.0f),		// G
+				RandomRange(0.0f, 1.0f)))));	// B
+
+		// Position the entity randomly
+		entities[i]->GetTransform()->SetPosition(
+			RandomRange(-10.0f, 10.0f),
+			RandomRange(2.5f, 10.0f),
+			RandomRange(-10.0f, 10.0f));
+
+		// Scale the entity randomly
+		entities[i]->GetTransform()->SetScale(
+			RandomRange(0.5f, 1.5f),
+			RandomRange(0.5f, 1.5f),
+			RandomRange(0.5f, 1.5f));
+	}
 
 	// Create a BLAS for a single  mesh, then the TLAS for our "scene"
-	RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphere.get());
-	RayTracing::CreateTopLevelAccelerationStructureForScene();
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 }
 
 
@@ -206,10 +239,32 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
-	// Loop through entities to make them rotate
-	for (auto e : entities)
+	// Quarter of the number of entities
+	unsigned int qSize = (unsigned int)entities.size() / 4;
+
+	// Rotate the first quarter in Y (start at 1 to skip big cube)
+	for(unsigned int i = 1; i < qSize; i++)
 	{
-		e->GetTransform()->Rotate(0.0f, deltaTime, 0.0f);
+		entities[i]->GetTransform()->Rotate(
+			0.0f, deltaTime * (i / 10.0f), 0.0f);
+	}
+	// Rotate second quarter in X and Z
+	for (unsigned int i = qSize; i < qSize * 2; i++)
+	{
+		entities[i]->GetTransform()->Rotate(
+			deltaTime * (i / 10.0f), 0.0f, deltaTime * (i / 10.0f));
+	}
+	// Translate third quarter up and down
+	for (unsigned int i = qSize * 2; i < qSize * 3; i++)
+	{
+		entities[i]->GetTransform()->MoveAbsolute(
+			0.0f, (float)sin(totalTime * (i / 10.0f)) / 100, 0.0f);
+	}
+	// Translate the final quarter left and right
+	for (unsigned int i = qSize * 3; i < qSize * 4; i++)
+	{
+		entities[i]->GetTransform()->MoveAbsolute(
+			(float)sin(totalTime * (i / 10.0f)) / 100, 0.0f, 0.0f);
 	}
 
 	camera->Update(deltaTime);
@@ -224,6 +279,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer =
 		Graphics::BackBuffers[Graphics::SwapChainIndex()];
+
+	// Recreate TLAS since the transforms will have updated
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 
 	// Perform ray trace (which also copies the results to the back buffer)
 	RayTracing::Raytrace(camera, currentBackBuffer);
