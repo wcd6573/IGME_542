@@ -1,6 +1,6 @@
 /*
 William Duprey
-3/1/25
+3/5/25
 Raytracing Header
  - Provided by prof. Chris Cascioli
 */
@@ -19,6 +19,14 @@ Raytracing Header
 
 namespace RayTracing 
 {
+	// --- CONSTANTS ---
+	// This represents the maximum number of hit groups
+	// in our shader table, each of which corresponds to
+	// a unique combination of geometry and hit shader.
+	// In a simple app, this is effectively hte maximum
+	// number of unique mesh BLAS's.
+	const unsigned int MaxHitGroupsInShaderTable = 1000;
+
 	// --- GLOBAL VARS ---
 	// Raytracing-specific versions of base DX12 objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device5> DXRDevice;

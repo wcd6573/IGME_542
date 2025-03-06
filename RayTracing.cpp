@@ -437,8 +437,10 @@ void RayTracing::CreateShaderTable()
         max(shaderTableMissRecordSize, shaderTableHitGroupRecordSize));
 
     // How big should the table be? 
-    // Need a record for each of our 3 shaders (in the simple demo)
-    UINT64 shaderTableSize = ShaderTableRecordSize * 3;
+    UINT64 shaderTableSize = 0;
+    shaderTableSize += ShaderTableRecordSize; // One ray gen shader
+    shaderTableSize += ShaderTableRecordSize; // One miss shader
+    shaderTableSize += ShaderTableRecordSize * MaxHitGroupsInShaderTable;
     shaderTableSize = ALIGN(shaderTableSize, 
         D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
@@ -462,9 +464,15 @@ void RayTracing::CreateShaderTable()
         D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
     shaderTableData += ShaderTableRecordSize;
 
-    memcpy(shaderTableData,
-        RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"),
-        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    // Make sure each hit group also has the proper identifier
+    for (unsigned int i = 0; i < MaxHitGroupsInShaderTable; i++)
+    {
+        memcpy(
+            shaderTableData,
+            RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"),
+            D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+        shaderTableData += ShaderTableRecordSize;
+    }
     
     // We'll eventually need to memcpy per-object data to the shader table,
     // but we don't do that yet
