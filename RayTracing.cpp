@@ -1,6 +1,6 @@
 /*
 William Duprey
-3/1/25
+3/5/25
 Raytracing Implementation
  - Provided by prof. Chris Cascioli
 */
@@ -179,14 +179,28 @@ void RayTracing::CreateRaytracingRootSignatures()
         geometrySRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         geometrySRVRange.RegisterSpace = 0;
 
+        // cbuffer for hit group data
+        D3D12_DESCRIPTOR_RANGE cbufferRange = {};
+        cbufferRange.BaseShaderRegister = 1;
+        cbufferRange.NumDescriptors = 1;
+        cbufferRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+        cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+        cbufferRange.RegisterSpace = 0;
+
         // One parameter: Descriptor table housing the index and vertex buffer descriptors
-        D3D12_ROOT_PARAMETER rootParams[1] = {};
+        D3D12_ROOT_PARAMETER rootParams[2] = {};
 
         // Range of SRVs for geometry (verts & indices)
         rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
         rootParams[0].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
+
+        // Range of CBVs for hit group data
+        rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+        rootParams[1].DescriptorTable.pDescriptorRanges = &cbufferRange;
 
         // Create the local root sig (ensure we denote it as a local sig)
         Microsoft::WRL::ComPtr<ID3DBlob> blob;

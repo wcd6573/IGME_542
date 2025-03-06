@@ -1,6 +1,6 @@
 /*
 William Duprey
-3/1/25
+3/5/25
 Raytracing Shader Library
  - Provided by prof. Chris Cascioli
 */
@@ -37,6 +37,12 @@ cbuffer SceneData : register(b0)
     float3 cameraPosition;
 };
 
+// Ensure this matches C++ buffer struct definition
+#define MAX_INSTANCES_PER_BLAS 100
+cbuffer ObjectData : register(b1)
+{
+    float4 entityColor[MAX_INSTANCES_PER_BLAS];
+};
 
 // --- Resources ---
 // Output UAV
@@ -169,13 +175,8 @@ void Miss(inout RayPayload payload)
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
-    // Grab the index of the triangle we hit
-    uint triangleIndex = PrimitiveIndex();
-    
-    // Get the interpolated vertex data
-    Vertex interpolatedVert = InterpolateVertices(triangleIndex, hitAttributes.barycentrics);
-    
-    // Use the resulting data to set the final color
-    // Note: here is where we would do actual shading
-    payload.color = interpolatedVert.normal;
+    // Access the ID pre-defined in the BLAS,
+    // and use it to access the color in the constant buffer
+    uint instanceID = InstanceID();
+    payload.color = entityColor[instanceID].rgb;
 }

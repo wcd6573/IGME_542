@@ -1,6 +1,6 @@
 /*
 William Duprey
-2/2/25
+3/5/25
 Buffer Structs Definitions
 */
 
@@ -39,4 +39,17 @@ struct RaytracingSceneData
 	DirectX::XMFLOAT4X4 inverseViewProjection;
 	DirectX::XMFLOAT3 cameraPosition;
 	float pad;
+};
+
+// Ensure this matches the Raytracing shader define
+#define MAX_INSTANCES_PER_BLAS 100
+
+// --------------------------------------------------------
+// Struct that stores an array of colors, with an entry
+// for each BLAS, which the shader code will access using
+// the instanceID defined when the BLAS is made.
+// --------------------------------------------------------
+struct RaytracingEntityData 
+{
+	DirectX::XMFLOAT4 color[MAX_INSTANCES_PER_BLAS];
 };
