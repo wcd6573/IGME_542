@@ -11,7 +11,9 @@ Raytracing Header
 #include <wrl/client.h>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "GameEntity.h"
 #include "Mesh.h"
 #include "Camera.h"
 
@@ -42,7 +44,6 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> BLAS;
 
 	// Actual output resource
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
@@ -68,7 +69,7 @@ namespace RayTracing
 
 	// Helper functions for each initialization step
 	MeshRaytracingData CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh);
-	void CreateTopLevelAccelerationStructureForScene();
+	void CreateTopLevelAccelerationStructureForScene(std::vector<std::shared_ptr<GameEntity>> scene);
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);
 	void CreateShaderTable();
