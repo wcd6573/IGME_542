@@ -67,7 +67,7 @@ namespace RayTracing
 		Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer);
 
 	// Helper functions for each initialization step
-	void CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh);
+	MeshRaytracingData CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh);
 	void CreateTopLevelAccelerationStructureForScene();
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);

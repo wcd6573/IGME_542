@@ -5,6 +5,7 @@ Mesh Class Implementation
 */
 
 #include "Mesh.h"
+#include "Raytracing.h"
 #include <fstream>
 #include <vector>
 using namespace DirectX;
@@ -398,4 +399,7 @@ void Mesh::CreateBuffers(Vertex* vertices, size_t _vertexCount,
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = (UINT)sizeof(unsigned int) * indexCount;
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+
+	// Create the raytracing acceleration structure for this mesh
+	raytracingData = RayTracing::CreateBottomLevelAccelerationStructureForMesh(this);
 }

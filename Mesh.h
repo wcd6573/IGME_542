@@ -1,6 +1,6 @@
 /*
 William Duprey
-2/2/25
+3/5/25
 Mesh Class Header
 */
 
@@ -12,10 +12,21 @@ Mesh Class Header
 #include "Graphics.h"
 #include "Vertex.h"
 
+// --------------------------------------------------------
+// A struct that stores data used for the BLAS for each
+// unique mesh.
+// --------------------------------------------------------
+struct MeshRaytracingData
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE IndexBufferSRV { };
+	D3D12_GPU_DESCRIPTOR_HANDLE VertexBufferSRV { };
+	Microsoft::WRL::ComPtr<ID3D12Resource> BLAS;
+	unsigned int HitGroupIndex = 0;
+};
+
 
 // --------------------------------------------------------
-// A class that stores data on a 3D mesh. Rather than be 
-// a "dumb" container, it can draw itself.
+// A class that stores data on a 3D mesh.
 // --------------------------------------------------------
 class Mesh
 {
@@ -39,6 +50,9 @@ public:
 	UINT GetVertexCount();
 	const char* GetName();
 
+	// Getter for the mesh's raytracing data struct
+	MeshRaytracingData GetRaytracingData() { return raytracingData; }
+
 private:
 	// Helper method provided by Chris Cascioli
 	void CalculateTangents(Vertex* verts, int numVerts,
@@ -52,15 +66,16 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	UINT vertexCount;
-	
 
 	// Indices of the vertices of the triangles making up the mesh
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW ibView{};
 	UINT indexCount;
-	
 
 	// Name of the mesh for ImGui to display
 	const char* name;
+
+	// Private raytracing data struct for the BLAS
+	MeshRaytracingData raytracingData;
 };
 

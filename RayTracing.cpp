@@ -29,6 +29,10 @@ namespace RayTracing
             "\nERROR: DXR Device query failed - DirectX Raytracing unavailable.\n";
         const char* errorDXRCommandListQueryFailed = 
             "\nERROR: DXR Command List query failed - DirectX Raytracing unavailable.\n";
+    
+        // How many BLAS's we've created, which is
+        // used to generate unique IDs per BLAS
+        UINT blasCount = 0;
     }
 }
 
@@ -545,10 +549,13 @@ void RayTracing::ResizeOutputUAV(
 // NOTE: This demo assumes exactly one BLAS, so running this
 // method more than once is not advised!
 // --------------------------------------------------------
-void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
+MeshRaytracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 {
+    // Raytracing-related data for this mesh
+    MeshRaytracingData raytracingData = {};
+
     // Don't bother if DXR isn't available
-    if (!dxrAvailable) { return; }
+    if (!dxrAvailable) { return raytracingData; }
 
     // Create the Bottom Level accel structure for this mesh
     // Note: Currently, this is on the one and only BLAS in our simple implementation!
@@ -599,7 +606,7 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
             D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
 
     // Create the final buffer for the BLAS
-    BLAS = Graphics::CreateBuffer(
+    raytracingData.BLAS = Graphics::CreateBuffer(
         accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
         D3D12_HEAP_TYPE_DEFAULT,
         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
@@ -611,13 +618,13 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
     buildDesc.Inputs = accelStructInputs;
     buildDesc.ScratchAccelerationStructureData = BLASScratchBuffer->GetGPUVirtualAddress();
-    buildDesc.DestAccelerationStructureData = BLAS->GetGPUVirtualAddress();
+    buildDesc.DestAccelerationStructureData = raytracingData.BLAS->GetGPUVirtualAddress();
     DXRCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, 0);
 
     // Set up a barrier to wait until the BLAS is actually build to proceed
     D3D12_RESOURCE_BARRIER blasBarrier = {};
     blasBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-    blasBarrier.UAV.pResource = BLAS.Get();
+    blasBarrier.UAV.pResource = raytracingData.BLAS.Get();
     blasBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
     DXRCommandList->ResourceBarrier(1, &blasBarrier);
 
@@ -627,8 +634,8 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
     //       up the root signature (expects a table of these).
     D3D12_CPU_DESCRIPTOR_HANDLE ib_cpu; 
     D3D12_CPU_DESCRIPTOR_HANDLE vb_cpu;
-    Graphics::ReserveDescriptorHeapSlot(&ib_cpu, &indexBufferSRV);
-    Graphics::ReserveDescriptorHeapSlot(&vb_cpu, &vertexBufferSRV);
+    Graphics::ReserveDescriptorHeapSlot(&ib_cpu, &raytracingData.IndexBufferSRV);
+    Graphics::ReserveDescriptorHeapSlot(&vb_cpu, &raytracingData.VertexBufferSRV);
 
     // Index buffer SRV
     D3D12_SHADER_RESOURCE_VIEW_DESC indexSRVDesc = {};
@@ -659,29 +666,39 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
         &vertexSRVDesc, 
         vb_cpu);
     
+    // Use hte BLAS count as the hit group index for this mesh
+    raytracingData.HitGroupIndex = blasCount;
+    blasCount++;
+
+    // Finish up before moving on
+    Graphics::CloseAndExecuteCommandList();
+    Graphics::WaitForGPU();
+    Graphics::ResetAllocatorAndCommandList();
+
     // We need to put this mesh's SRVs into the shader table
     // - In a larger application, each unique mesh will need
     //   its own entry in the shader table
     unsigned char* tablePointer = 0;
     ShaderTable->Map(0, 0, (void**)&tablePointer);
     {
-        // Get pas the raygen and miss shaders in the shader table
-        tablePointer += ShaderTableRecordSize + ShaderTableRecordSize;
-
-        // In the shader table, we need to get past the identifier
-        tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+        tablePointer += ShaderTableRecordSize * 2; // Get past raygen and miss shaders
+        tablePointer += ShaderTableRecordSize * raytracingData.HitGroupIndex; // Hit group
+        tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Get passt the identifier
 
         // Memcpy the index buffer's SRV to the table
         // - We're assuming the index buffer SRV is IMMEDIATELY
         //   followed by the vertex buffer SRV in the heap
         memcpy(
             tablePointer,
-            &indexBufferSRV,
+            &raytracingData.IndexBufferSRV,
             sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
     }
 
     // All done
     ShaderTable->Unmap(0, 0);
+
+    // Pass back the raytracing data for this mesh
+    return raytracingData;
 }
 
 
