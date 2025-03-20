@@ -1,9 +1,11 @@
 /*
 William Duprey
-3/5/25
+3/20/25
 Raytracing Shader Library
  - Provided by prof. Chris Cascioli
 */
+
+#include "ShaderIncludes.hlsli"
 
 // --- Structs ---
 // Layout of data in the vertex buffer
@@ -23,6 +25,8 @@ static const uint VertexSizeInBytes = 11 * 4;
 struct RayPayload
 {
     float3 color;
+    uint recursionDepth;
+    uint rayPerPixelIndex;
 };
 
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes
@@ -146,6 +150,7 @@ void RayGen()
     // Set up the payload for the ray
     // This initializes the struct to all zeroes
     RayPayload payload = (RayPayload)0;
+    payload.color = float3(1, 1, 1);
     
     // Perform the ray trace for this ray
     TraceRay(
@@ -175,8 +180,38 @@ void Miss(inout RayPayload payload)
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
-    // Access the ID pre-defined in the BLAS,
-    // and use it to access the color in the constant buffer
-    uint instanceID = InstanceID();
-    payload.color = entityColor[instanceID].rgb;
+    // If reached max recursion, haven't hit a light source
+    if (payload.recursionDepth == 10)
+    {
+        payload.color = float3(0, 0, 0);
+        return;
+    }
+    
+    // Otherwise, we've hit, do raytracing work
+    // - Access the ID pre-defined in the BLAS,
+    //   and use it to access the color in the constant buffer
+    payload.color *= entityColor[InstanceID()].rgb;
+    
+    // Figure out which object was hit to calculate the normal
+    Vertex vert = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
+    
+    // Don't care about translation, so convert to 3x3
+    float3 normal = normalize(mul(vert.normal, (float3x3) ObjectToWorld4x3()));
+    
+    // Generate new ray
+    RayDesc ray;
+    ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    ray.Direction = reflect(WorldRayDirection(), normal);
+    ray.TMin = 0.0001f;
+    ray.TMax = 1000.0f;
+    
+    // Recursive ray trace
+    payload.recursionDepth++;
+    TraceRay(
+        SceneTLAS,
+        RAY_FLAG_NONE,
+        0xFF, 0, 0, 0,
+        ray,
+        payload);
+
 }

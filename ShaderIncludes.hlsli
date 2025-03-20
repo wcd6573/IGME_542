@@ -8,6 +8,8 @@ Shader Include File
 #ifndef __GGP_SHADER_INCLUDES__ 
 #define __GGP_SHADER_INCLUDES__
 
+#define M_PI 3.14159265359f
+
 ////////////////////////////////////////////////////////////////////////////////
 // --------------------------------- STRUCTS -------------------------------- //
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,6 +63,15 @@ struct VertexToPixel_Sky
 ////////////////////////////////////////////////////////////////////////////////
 // --------------------------------------------------------
 // Performs a bunch of arbitrary steps 
+// to produce a deterministically random float.
+// --------------------------------------------------------
+float random_float(float2 uv)
+{
+    return frac(sin(dot(uv, float2(12.9898, 87.233))) * 43758.5453);
+}
+
+// --------------------------------------------------------
+// Performs a bunch of arbitrary steps 
 // to produce a deterministically random float2.
 // --------------------------------------------------------
 inline float2 random_float2(float2 uv, float offset)
@@ -103,6 +114,42 @@ inline float3 random_float3(float3 pos, float offset)
 		cos(pos.y * offset) * 0.5f + 0.5f,
 		sin(pos.z * offset) * 0.5f + 0.5f
 	);
+}
+
+// --------------------------------------------------------
+// Random vector generation from Ch. 16 of Raytracing Gems.
+// - Requires two uniformly distributed "random" float values.
+// - Maps them to a sphere
+// --------------------------------------------------------
+float3 random_vector(float u0, float u1)
+{
+    float a = u0 * 2 - 1;
+    float b = sqrt(1 - a * a);
+    float phi = 2.0f * M_PI * u1;
+	
+    float x = b * cos(phi);
+    float y = b * sin(phi);
+    float z = a;
+	
+    return float3(x, y, z);
+}
+
+// --------------------------------------------------------
+// Random vector in a hemisphere generation Raytracing Gems.
+// - Requires two uniformly distributed "random" float values,
+//   as well as a unit normal vector.
+// --------------------------------------------------------
+float3 random_cosine_weighted_hemisphere(
+	float u0, float u1, float3 unitNormal)
+{
+    float a = u0 * 2 - 1;
+    float b = sqrt(1 - a * a);
+    float phi = 2.0f * M_PI * u1;
+	
+    float x = unitNormal.x + b * cos(phi);
+    float y = unitNormal.y + b * sin(phi);
+    float z = unitNormal.z + a;
+    return float3(x, y, z);
 }
 
 // --------------------------------------------------------
