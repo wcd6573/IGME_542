@@ -147,7 +147,7 @@ void RayGen()
     // - From the GGP2 path tracing slides
     float3 totalColor = float3(0, 0, 0);
     
-    int raysPerPixel = 1;
+    int raysPerPixel = 10;
     for (int r = 0; r < raysPerPixel; r++)
     {
         float2 adjustedIndices = (float2) rayIndices;
@@ -230,7 +230,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     // Generate new ray
     RayDesc ray;
     ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-    ray.Direction = reflect(WorldRayDirection(), normal);
+    ray.Direction = reflect(WorldRayDirection(), randomBounce);
     ray.TMin = 0.0001f;
     ray.TMax = 1000.0f;
     

@@ -164,9 +164,9 @@ void Game::CreateEntities()
 
 	meshes.push_back(cube);			// 0
 	meshes.push_back(cylinder);		// 1
-	meshes.push_back(helix);		// 2
-	meshes.push_back(sphere);		// 3
-	meshes.push_back(torus);		// 4
+	meshes.push_back(sphere);		// 2
+	meshes.push_back(torus);		// 3
+	meshes.push_back(helix);		// 4
 	meshes.push_back(quad);			// 5
 	meshes.push_back(quadDouble);	// 6
 
@@ -187,7 +187,7 @@ void Game::CreateEntities()
 	{
 		// Make a new entity with a random color
 		entities.push_back(std::make_shared<GameEntity>(
-			meshes[static_cast<int>(RandomRange(0.0f, 4.99f))],
+			meshes[static_cast<int>(RandomRange(0.0f, 3.99f))],
 			std::make_shared<Material>(XMFLOAT3(
 				RandomRange(0.0f, 1.0f),		// R
 				RandomRange(0.0f, 1.0f),		// G
