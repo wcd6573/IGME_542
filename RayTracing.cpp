@@ -762,8 +762,8 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(
         // Set up the entity data for this entity, too
         // - mesh index tells us which cbuffer
         // - instance ID tells us which instance in that cbuffer
-        DirectX::XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
-        entityData[meshBlasIndex].color[instDesc.InstanceID] = DirectX::XMFLOAT4(c.x, c.y, c.z, 1);
+        DirectX::XMFLOAT4 c = scene[i]->GetMaterial()->GetColorTint();
+        entityData[meshBlasIndex].color[instDesc.InstanceID] = DirectX::XMFLOAT4(c.x, c.y, c.z, c.w);
 
         // On to the next instance for this mesh
         instanceIDs[meshBlasIndex]++;

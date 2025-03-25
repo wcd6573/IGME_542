@@ -174,7 +174,7 @@ void Game::CreateEntities()
 	// Make a big, gray cube
 	std::shared_ptr<GameEntity> e1 = std::make_shared<GameEntity>(
 		meshes[0],
-		std::make_shared<Material>(XMFLOAT3(0.5f, 0.5f, 0.5f)));
+		std::make_shared<Material>(XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f)));
 	e1->GetTransform()->SetScale(40.0f, 40.0f, 40.0f);
 	e1->GetTransform()->SetPosition(0.0f, -40.0f, 0.0f);
 	entities.push_back(e1);
@@ -188,10 +188,11 @@ void Game::CreateEntities()
 		// Make a new entity with a random color
 		entities.push_back(std::make_shared<GameEntity>(
 			meshes[static_cast<int>(RandomRange(0.0f, 3.99f))],
-			std::make_shared<Material>(XMFLOAT3(
+			std::make_shared<Material>(XMFLOAT4(
 				RandomRange(0.0f, 1.0f),		// R
 				RandomRange(0.0f, 1.0f),		// G
-				RandomRange(0.0f, 1.0f)))));	// B
+				RandomRange(0.0f, 1.0f),		// B
+				RandomRange(0.0f, 1.0f)))));	// A	
 
 		// Position the entity randomly
 		entities[i]->GetTransform()->SetPosition(

@@ -67,12 +67,20 @@ struct VertexToPixel_Sky
 // --------------------------------------------------------
 float random_float(float2 uv)
 {
-    return frac(sin(dot(uv, float2(12.9898, 87.233))) * 43758.5453);
+    return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float2 rand2(float2 uv)
+{
+    return float2(
+		random_float(uv),
+		random_float(uv.yx));
 }
 
 // --------------------------------------------------------
 // Performs a bunch of arbitrary steps 
-// to produce a deterministically random float2.
+// to produce a deterministically random float2, additionally,
+// uses an offset to further randomize.
 // --------------------------------------------------------
 inline float2 random_float2(float2 uv, float offset)
 {

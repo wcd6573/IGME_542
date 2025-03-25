@@ -147,12 +147,12 @@ void RayGen()
     // - From the GGP2 path tracing slides
     float3 totalColor = float3(0, 0, 0);
     
-    int raysPerPixel = 10;
+    int raysPerPixel = 25;
     for (int r = 0; r < raysPerPixel; r++)
     {
         float2 adjustedIndices = (float2) rayIndices;
         float ray01 = (float) r / raysPerPixel;
-        adjustedIndices += random_float2(rayIndices.xy * ray01, 1);
+        adjustedIndices += rand2(rayIndices.xy * ray01);
         
         // --- Raytracing work ---
         // Calculate the ray from the camera through a particular
@@ -163,6 +163,8 @@ void RayGen()
         // This initializes the struct to all zeroes
         RayPayload payload = (RayPayload) 0;
         payload.color = float3(1, 1, 1);
+        payload.recursionDepth = 0;
+        payload.rayPerPixelIndex = r;
     
         // Perform the ray trace for this ray
         TraceRay(
@@ -181,7 +183,7 @@ void RayGen()
     float3 avg = totalColor / raysPerPixel;
 
     // Set the final color of the buffer
-    OutputColor[rayIndices] = float4(avg, 1);
+    OutputColor[rayIndices] = float4(pow(avg, 1.0f / 2.2f), 1);
 }
 
 // Miss shader - What happens if the ray doesn't hit anything?
@@ -218,19 +220,25 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     // Calculate a unique RNG value for this ray, 
     // based on the "uv" of this pixel and other per-ray data
     float2 uv = (float2) DispatchRaysIndex() / (float2)DispatchRaysDimensions();
-    float2 rng = random_float2(uv * (payload.recursionDepth + 1) 
-        + payload.rayPerPixelIndex + RayTCurrent(), 1);
+    float2 rng = rand2(uv * (payload.recursionDepth + 1) 
+        + payload.rayPerPixelIndex + RayTCurrent());
+    
+    // Generate a perfect reflection
+    float3 refl = reflect(WorldRayDirection(), normal);
     
     // Generate a random bounce in the hemisphere
     float3 randomBounce = random_cosine_weighted_hemisphere(
         random_float(rng), 
         random_float(rng.yx), 
         normal);
+
+    // Linearly interpolate based on the alpha channel    
+    float3 direction = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
     
     // Generate new ray
     RayDesc ray;
     ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-    ray.Direction = reflect(WorldRayDirection(), randomBounce);
+    ray.Direction = direction;
     ray.TMin = 0.0001f;
     ray.TMax = 1000.0f;
     
@@ -242,5 +250,4 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
         0xFF, 0, 0, 0,
         ray,
         payload);
-
 }
