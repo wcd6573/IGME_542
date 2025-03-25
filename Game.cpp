@@ -185,6 +185,26 @@ void Game::CreateEntities()
 	// Loop to make a bunch of random entities at random positions
 	for (unsigned int i = 1; i < 50; i++)
 	{
+		// For roughness: 
+		// - 1/3 chance to be completely reflective,
+		// - 1/3 chance to be completely diffuse
+		// - 1/3 chance to be in-between
+		float roughness;
+		int rnd = (int)(RandomRange(0.0f, 2.99f));
+
+		switch (rnd)
+		{
+		case 0:
+			roughness = 0.0f;
+			break;
+		case 1:
+			roughness = 1.0f;
+			break;
+		default:
+			roughness = RandomRange(0.0f, 1.0f);
+			break;
+		}
+
 		// Make a new entity with a random color
 		entities.push_back(std::make_shared<GameEntity>(
 			meshes[static_cast<int>(RandomRange(0.0f, 3.99f))],
@@ -192,7 +212,7 @@ void Game::CreateEntities()
 				RandomRange(0.0f, 1.0f),		// R
 				RandomRange(0.0f, 1.0f),		// G
 				RandomRange(0.0f, 1.0f),		// B
-				RandomRange(0.0f, 1.0f)))));	// A	
+				roughness))));					// A	
 
 		// Position the entity randomly
 		entities[i]->GetTransform()->SetPosition(
