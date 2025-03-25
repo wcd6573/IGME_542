@@ -142,29 +142,46 @@ void RayGen()
 {
     // Get the ray indices
     uint2 rayIndices = DispatchRaysIndex().xy;
+ 
+    // Multiple rays per pixel code
+    // - From the GGP2 path tracing slides
+    float3 totalColor = float3(0, 0, 0);
     
-    // Calculate the ray from the camera through a particular
-    // pixel of the output buffer using this shader's indices
-    RayDesc ray = CalcRayFromCamera(rayIndices);
+    int raysPerPixel = 1;
+    for (int r = 0; r < raysPerPixel; r++)
+    {
+        float2 adjustedIndices = (float2) rayIndices;
+        float ray01 = (float) r / raysPerPixel;
+        adjustedIndices += random_float2(rayIndices.xy * ray01, 1);
+        
+        // --- Raytracing work ---
+        // Calculate the ray from the camera through a particular
+        // pixel of the output buffer using this shader's indices
+        RayDesc ray = CalcRayFromCamera(rayIndices);
     
-    // Set up the payload for the ray
-    // This initializes the struct to all zeroes
-    RayPayload payload = (RayPayload)0;
-    payload.color = float3(1, 1, 1);
+        // Set up the payload for the ray
+        // This initializes the struct to all zeroes
+        RayPayload payload = (RayPayload) 0;
+        payload.color = float3(1, 1, 1);
     
-    // Perform the ray trace for this ray
-    TraceRay(
-        SceneTLAS,
-        RAY_FLAG_NONE,
-        0xFF,
-        0,
-        0,
-        0,
-        ray,
-        payload);
+        // Perform the ray trace for this ray
+        TraceRay(
+            SceneTLAS,
+            RAY_FLAG_NONE,
+            0xFF,
+            0,
+            0,
+            0,
+            ray,
+            payload);
+        
+        totalColor += payload.color;
+    }
+    
+    float3 avg = totalColor / raysPerPixel;
 
     // Set the final color of the buffer
-    OutputColor[rayIndices] = float4(payload.color, 1);
+    OutputColor[rayIndices] = float4(avg, 1);
 }
 
 // Miss shader - What happens if the ray doesn't hit anything?
@@ -173,7 +190,7 @@ void Miss(inout RayPayload payload)
 {
     // Nothing was hit, so return black for now
     // Ideally this is where we would do skybox stuff!
-    payload.color = float3(0.4f, 0.6f, 0.75f);
+    payload.color *= float3(0.4f, 0.6f, 0.75f);
 }
 
 // Closest hit shader - Runs the first time a ray hits anything
@@ -197,6 +214,18 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     
     // Don't care about translation, so convert to 3x3
     float3 normal = normalize(mul(vert.normal, (float3x3) ObjectToWorld4x3()));
+    
+    // Calculate a unique RNG value for this ray, 
+    // based on the "uv" of this pixel and other per-ray data
+    float2 uv = (float2) DispatchRaysIndex() / (float2)DispatchRaysDimensions();
+    float2 rng = random_float2(uv * (payload.recursionDepth + 1) 
+        + payload.rayPerPixelIndex + RayTCurrent(), 1);
+    
+    // Generate a random bounce in the hemisphere
+    float3 randomBounce = random_cosine_weighted_hemisphere(
+        random_float(rng), 
+        random_float(rng.yx), 
+        normal);
     
     // Generate new ray
     RayDesc ray;
