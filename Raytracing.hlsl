@@ -46,6 +46,7 @@ cbuffer SceneData : register(b0)
 cbuffer ObjectData : register(b1)
 {
     float4 entityColor[MAX_INSTANCES_PER_BLAS];
+    float refraction[MAX_INSTANCES_PER_BLAS];
 };
 
 // --- Resources ---
@@ -147,7 +148,7 @@ void RayGen()
     // - From the GGP2 path tracing slides
     float3 totalColor = float3(0, 0, 0);
     
-    int raysPerPixel = 25;
+    int raysPerPixel = 5;
     for (int r = 0; r < raysPerPixel; r++)
     {
         float2 adjustedIndices = (float2) rayIndices;
@@ -200,7 +201,7 @@ void Miss(inout RayPayload payload)
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
     // If reached max recursion, haven't hit a light source
-    if (payload.recursionDepth == 10)
+    if (payload.recursionDepth == 5)
     {
         payload.color = float3(0, 0, 0);
         return;
@@ -223,8 +224,19 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     float2 rng = rand2(uv * (payload.recursionDepth + 1) 
         + payload.rayPerPixelIndex + RayTCurrent());
     
-    // Generate a perfect reflection
-    float3 refl = reflect(WorldRayDirection(), normal);
+    float3 ref; // Reflection or refraction
+    
+    // Bad, ugly if statement
+    if (refraction[InstanceID()] > 0)
+    {
+        // Refract if there is a refraction index
+        ref = refract(WorldRayDirection(), normal, 1.5f);
+    }
+    else
+    {
+        // Otherwise, perfect reflection
+        ref = reflect(WorldRayDirection(), normal);
+    }
     
     // Generate a random bounce in the hemisphere
     float3 randomBounce = random_cosine_weighted_hemisphere(
@@ -233,7 +245,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
         normal);
 
     // Linearly interpolate based on the alpha channel    
-    float3 direction = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
+    float3 direction = normalize(lerp(ref, randomBounce, entityColor[InstanceID()].a));
     
     // Generate new ray
     RayDesc ray;
