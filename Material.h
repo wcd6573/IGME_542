@@ -20,7 +20,6 @@ public:
 	Material(
 		//Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState,
 		DirectX::XMFLOAT4 _tint = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),
-		float _refraction = 0.0f,
 		DirectX::XMFLOAT2 _scale = DirectX::XMFLOAT2(1.0f, 1.0f),
 		DirectX::XMFLOAT2 _offset = DirectX::XMFLOAT2(0.0f, 0.0f));
 
@@ -29,7 +28,6 @@ public:
 	DirectX::XMFLOAT4 GetColorTint();
 	DirectX::XMFLOAT2 GetUVScale();
 	DirectX::XMFLOAT2 GetUVOffset();
-	float GetRefraction();
 	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs();
 
 	// Setters
@@ -37,7 +35,6 @@ public:
 	void SetColorTint(DirectX::XMFLOAT4 _tint);
 	void SetUVScale(DirectX::XMFLOAT2 _scale);
 	void SetUVOffset(DirectX::XMFLOAT2 _offset);
-	void SetRefraction(float _refraction);
 
 	// Material methods
 	void AddTexture(D3D12_CPU_DESCRIPTOR_HANDLE srv, int slot);
@@ -48,7 +45,6 @@ private:
 	DirectX::XMFLOAT4 colorTint;
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
-	float refraction;
 	bool finalized;
 	
 	// Descriptor handle... handling

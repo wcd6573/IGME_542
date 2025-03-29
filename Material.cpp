@@ -13,14 +13,12 @@ Material Class Implementation
 Material::Material(
 	//Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState, 
 	DirectX::XMFLOAT4 _tint, 
-	float _refraction,
 	DirectX::XMFLOAT2 _scale, 
 	DirectX::XMFLOAT2 _offset) 
 	: //pipelineState(_pipelineState),
 	  colorTint(_tint),
 	  uvScale(_scale),
 	  uvOffset(_offset),
-	  refraction(_refraction),
 	  finalized(false),
 	  highestSRVSlot(-1)
 {
@@ -38,7 +36,6 @@ Material::Material(
 DirectX::XMFLOAT4 Material::GetColorTint() { return colorTint; }
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
-float Material::GetRefraction() { return refraction; }
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() { return finalGPUHandleForSRVs; }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,7 +45,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() { return finalG
 void Material::SetColorTint(DirectX::XMFLOAT4 _tint) { colorTint = _tint; }
 void Material::SetUVScale(DirectX::XMFLOAT2 _scale) { uvScale = _scale; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 _offset) { uvOffset = _offset; }
-void Material::SetRefraction(float _refraction) { refraction = _refraction; }
 
 // --------------------------------------------------------
 // Adds a texture (with SRV descriptor) to the material

@@ -186,13 +186,11 @@ void Game::CreateEntities()
 	for (unsigned int i = 1; i < 50; i++)
 	{
 		// For roughness: 
-		// - 1/4 chance to be completely reflective,
-		// - 1/4 chance to be completely diffuse
-		// - 1/4 chance to be in-between
-		// - 1/4 chance to be refractive
+		// - 1/3 chance to be completely reflective,
+		// - 1/3 chance to be completely diffuse
+		// - 1/3 chance to be in-between
 		float roughness;
-		float refraction = 0.0f;
-		int rnd = (int)(RandomRange(0.0f, 3.99f));
+		int rnd = (int)(RandomRange(0.0f, 2.99f));
 
 		switch (rnd)
 		{
@@ -202,12 +200,8 @@ void Game::CreateEntities()
 		case 1:
 			roughness = 1.0f;
 			break;
-		case 2:
-			roughness = RandomRange(0.0f, 1.0f);
-			break;
 		default:
-			roughness = 0.0f;
-			refraction = 1.5f;
+			roughness = RandomRange(0.0f, 1.0f);
 			break;
 		}
 
@@ -218,8 +212,7 @@ void Game::CreateEntities()
 				RandomRange(0.0f, 1.0f),		// R
 				RandomRange(0.0f, 1.0f),		// G
 				RandomRange(0.0f, 1.0f),		// B
-				roughness),						// A
-				refraction)));						
+				roughness))));					// A	
 
 		// Position the entity randomly
 		entities[i]->GetTransform()->SetPosition(
@@ -228,10 +221,10 @@ void Game::CreateEntities()
 			RandomRange(-10.0f, 10.0f));
 
 		// Scale the entity randomly
-		//entities[i]->GetTransform()->SetScale(
-		//	RandomRange(0.5f, 1.5f),
-		//	RandomRange(0.5f, 1.5f),
-		//	RandomRange(0.5f, 1.5f));
+		entities[i]->GetTransform()->SetScale(
+			RandomRange(0.5f, 1.5f),
+			RandomRange(0.5f, 1.5f),
+			RandomRange(0.5f, 1.5f));
 	}
 
 	// Create a BLAS for a single  mesh, then the TLAS for our "scene"

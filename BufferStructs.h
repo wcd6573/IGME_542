@@ -52,5 +52,4 @@ struct RaytracingSceneData
 struct RaytracingEntityData 
 {
 	DirectX::XMFLOAT4 color[MAX_INSTANCES_PER_BLAS];
-	float refraction[MAX_INSTANCES_PER_BLAS];
 };
