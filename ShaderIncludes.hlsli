@@ -161,6 +161,16 @@ float3 random_cosine_weighted_hemisphere(
 }
 
 // --------------------------------------------------------
+// Schlick approximation for reflectance
+// --------------------------------------------------------
+float reflectance(float cosine, float refractionIndex)
+{
+    float r0 = (1.0f - refractionIndex) / (1 + refractionIndex);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
+// --------------------------------------------------------
 // Does some stuff that's still a little over my head in
 // terms of the actual Voronoi algorithm, but the result 
 // is a 2D pattern of cells whose density and angle offset

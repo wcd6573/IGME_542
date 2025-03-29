@@ -192,7 +192,8 @@ void Game::CreateEntities()
 		// - 1/4 chance to be refractive
 		float roughness;
 		float refraction = 0.0f;
-		int rnd = (int)(RandomRange(0.0f, 3.99f));
+		//int rnd = (int)(RandomRange(0.0f, 3.99f));
+		int rnd = 3;
 
 		switch (rnd)
 		{
