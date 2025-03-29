@@ -229,39 +229,8 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     // Bad, ugly if statement
     if (refraction[InstanceID()] > 0)
     {
-        // Refraction index, differs whether ray 
-        // is inside or outside the object
-        float ri;
-        
-        // Incredibly bad, nested if statement
-        if (dot(WorldRayDirection(), normal) > 0.0)
-        {
-            // Ray is inside
-            normal = -normal;
-            ri = refraction[InstanceID()];
-        }
-        else
-        {
-            // Ray is outside
-            ri = 1.0f / (refraction[InstanceID()]);
-        }
-        
-        float cosTheta = min(dot(-WorldRayDirection(), normal), 1.0f);
-        float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
-        
-        bool cannotRefract = ri * sinTheta > 1.0f;
-        //ref = refract(WorldRayDirection(), normal, ri);
-        
-        // Very bad, very not good HLSL, bad branching
-        // I am bad and I should feel bad for writing this code
-        //if (cannotRefract || reflectance(cosTheta, ri) > random_float(rng))
-        //{
-            ref = refract(WorldRayDirection(), normal, ri);
-        //}
-        //else
-        //{
-        //    ref = reflect(WorldRayDirection(), normal);
-        //}         
+        // Refract if there is a refraction index
+        ref = refract(WorldRayDirection(), normal, 1.5f);
     }
     else
     {
