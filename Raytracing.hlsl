@@ -1,8 +1,10 @@
 /*
 William Duprey
-3/20/25
+3/29/25
 Raytracing Shader Library
- - Provided by prof. Chris Cascioli
+ - Starter code by prof. Chris Cascioli
+ - Loosely followed this NVIDIA tutorial for shadows:
+   https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial/extra/dxr_tutorial_extra_another_ray_type
 */
 
 #include "ShaderIncludes.hlsli"
@@ -27,6 +29,7 @@ struct RayPayload
     float3 color;
     uint recursionDepth;
     uint rayPerPixelIndex;
+    bool isHit;
 };
 
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes
@@ -58,6 +61,11 @@ RaytracingAccelerationStructure SceneTLAS : register(t0);
 // Geometry buffers
 ByteAddressBuffer IndexBuffer : register(t1);
 ByteAddressBuffer VertexBuffer : register(t2);
+
+// Constant source of light used for shadows
+// - This could easily be part of a constant buffer, 
+//   but just for simplicity, it's a constant
+const float3 LIGHT = float3(10, 10, 10);
 
 
 // --- Helpers ---
@@ -147,7 +155,7 @@ void RayGen()
     // - From the GGP2 path tracing slides
     float3 totalColor = float3(0, 0, 0);
     
-    int raysPerPixel = 25;
+    int raysPerPixel = 5;
     for (int r = 0; r < raysPerPixel; r++)
     {
         float2 adjustedIndices = (float2) rayIndices;
@@ -175,13 +183,13 @@ void RayGen()
             0,
             0,
             ray,
-            payload);
+            payload);        
         
         totalColor += payload.color;
     }
     
     float3 avg = totalColor / raysPerPixel;
-
+    
     // Set the final color of the buffer
     OutputColor[rayIndices] = float4(pow(avg, 1.0f / 2.2f), 1);
 }
@@ -190,9 +198,16 @@ void RayGen()
 [shader("miss")]
 void Miss(inout RayPayload payload)
 {
-    // Nothing was hit, so return black for now
-    // Ideally this is where we would do skybox stuff!
+    // Nothing was hit, so return a constant color
+    // - Ideally this is where we would do skybox stuff
     payload.color *= float3(0.4f, 0.6f, 0.75f);
+}
+
+// Miss shader for shadows
+[shader("miss")]
+void ShadowMiss(inout RayPayload payload)
+{
+    payload.isHit = false;
 }
 
 // Closest hit shader - Runs the first time a ray hits anything
@@ -200,9 +215,10 @@ void Miss(inout RayPayload payload)
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
     // If reached max recursion, haven't hit a light source
-    if (payload.recursionDepth == 10)
+    if (payload.recursionDepth >= 5)
     {
         payload.color = float3(0, 0, 0);
+        payload.isHit = true;
         return;
     }
     
@@ -210,6 +226,10 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     // - Access the ID pre-defined in the BLAS,
     //   and use it to access the color in the constant buffer
     payload.color *= entityColor[InstanceID()].rgb;
+    
+    // Something was hit, so mark down the isHit boolean,
+    // which is used in RayGen to scale down the final color
+    payload.isHit = true;
     
     // Figure out which object was hit to calculate the normal
     Vertex vert = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
@@ -250,4 +270,37 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
         0xFF, 0, 0, 0,
         ray,
         payload);
+    
+    // --- Extra ray for shadows ---
+    // Shadow ray description
+    // - Identical except for direction, which is
+    //   pointed towards the light source
+    RayDesc shadowRay;
+    shadowRay.Origin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+    shadowRay.Direction = normalize(LIGHT - shadowRay.Origin);
+    shadowRay.TMin = 0.0001f;
+    shadowRay.TMax = 1000.0f;
+    
+    // Set up shadow ray's payload
+    RayPayload shadowPayload = (RayPayload) 0;
+    shadowPayload.color = float3(1, 1, 1);
+    // Start at the maximum recursion depth to trigger
+    // the if statement at the start, which sets isHit
+    shadowPayload.recursionDepth = 100;
+    shadowPayload.rayPerPixelIndex = payload.rayPerPixelIndex;
+    shadowPayload.isHit = false;
+    
+    TraceRay(
+        SceneTLAS,
+        RAY_FLAG_NONE,
+        0xFF,
+        0,
+        0,
+        1,  // Offset to the shadow miss shader
+        shadowRay,
+        shadowPayload);
+    
+    // Scale the payload's final color based on the shadow ray results
+    float factor = shadowPayload.isHit ? 0.3f : 1.0f;
+    payload.color *= factor;
 }

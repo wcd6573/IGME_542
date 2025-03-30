@@ -1,6 +1,6 @@
 /*
 William Duprey
-3/5/25
+3/29/25
 Raytracing Implementation
  - Provided by prof. Chris Cascioli
 */
@@ -271,15 +271,19 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     subobjects[0] = rayGenSubObj;
 
     // === Miss shader ===
-    D3D12_EXPORT_DESC missExportDesc = {};
-    missExportDesc.Name = L"Miss";
-    missExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+    // Use an array of export descriptions to 
+    // allow for multiple miss shaders
+    D3D12_EXPORT_DESC missExportDesc[2] = {};
+    missExportDesc[0].Name = L"Miss";
+    missExportDesc[0].Flags = D3D12_EXPORT_FLAG_NONE;
+    missExportDesc[1].Name = L"ShadowMiss";
+    missExportDesc[1].Flags = D3D12_EXPORT_FLAG_NONE;
 
     D3D12_DXIL_LIBRARY_DESC missLibDesc = {};
     missLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
     missLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
-    missLibDesc.NumExports = 1;
-    missLibDesc.pExports = &missExportDesc;
+    missLibDesc.NumExports = 2;
+    missLibDesc.pExports = missExportDesc;
 
     D3D12_STATE_SUBOBJECT missSubObj = {};
     missSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
@@ -318,8 +322,12 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     // === Shader config ===
     D3D12_RAYTRACING_SHADER_CONFIG shaderConfigDesc = {};
     // float3 color, unsigned int for recursion depth and rayPerPixelIndex
+    // - booleans in HLSL are 4 bytes, so just use 
+    //   more sizeof unsigned int for them
     // And float2 for barycentric coordinates
-    shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3) + sizeof(unsigned int) * 2;
+    shaderConfigDesc.MaxPayloadSizeInBytes = 
+        sizeof(DirectX::XMFLOAT3) 
+        + (sizeof(unsigned int) * 4);
     shaderConfigDesc.MaxAttributeSizeInBytes = sizeof(DirectX::XMFLOAT2);
 
     D3D12_STATE_SUBOBJECT shaderConfigSubObj = {};
@@ -440,7 +448,7 @@ void RayTracing::CreateShaderTable()
     // How big should the table be? 
     UINT64 shaderTableSize = 0;
     shaderTableSize += ShaderTableRecordSize; // One ray gen shader
-    shaderTableSize += ShaderTableRecordSize; // One miss shader
+    shaderTableSize += ShaderTableRecordSize * 2; // Two miss shaders
     shaderTableSize += ShaderTableRecordSize * MaxHitGroupsInShaderTable;
     shaderTableSize = ALIGN(shaderTableSize, 
         D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);

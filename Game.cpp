@@ -221,10 +221,10 @@ void Game::CreateEntities()
 			RandomRange(-10.0f, 10.0f));
 
 		// Scale the entity randomly
-		entities[i]->GetTransform()->SetScale(
-			RandomRange(0.5f, 1.5f),
-			RandomRange(0.5f, 1.5f),
-			RandomRange(0.5f, 1.5f));
+		//entities[i]->GetTransform()->SetScale(
+		//	RandomRange(0.5f, 1.5f),
+		//	RandomRange(0.5f, 1.5f),
+		//	RandomRange(0.5f, 1.5f));
 	}
 
 	// Create a BLAS for a single  mesh, then the TLAS for our "scene"
