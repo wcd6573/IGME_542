@@ -22,6 +22,11 @@ struct Vertex
 // 11 floats total per vertex * 4 bytes each
 static const uint VertexSizeInBytes = 11 * 4;
 
+// Constants to control the intensity of raytracing
+static const int RaysPerPixel = 5;
+static const int MaxRecursionDepth = 5;
+
+
 // Payload for rays (data that is "sent along" with each ray during raytrace)
 // Note: This should be as small as possible, and must match our C++ size definition
 struct RayPayload
@@ -29,7 +34,7 @@ struct RayPayload
     float3 color;
     uint recursionDepth;
     uint rayPerPixelIndex;
-    bool isHit;
+    bool isHit; // Used for shadows
 };
 
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes
@@ -61,12 +66,6 @@ RaytracingAccelerationStructure SceneTLAS : register(t0);
 // Geometry buffers
 ByteAddressBuffer IndexBuffer : register(t1);
 ByteAddressBuffer VertexBuffer : register(t2);
-
-// Constant source of light used for shadows
-// - This could easily be part of a constant buffer, 
-//   but just for simplicity, it's a constant
-const float3 LIGHT = float3(10, 10, 10);
-
 
 // --- Helpers ---
 // Loads the indices of the specified triangle from the index buffer
@@ -155,7 +154,7 @@ void RayGen()
     // - From the GGP2 path tracing slides
     float3 totalColor = float3(0, 0, 0);
     
-    int raysPerPixel = 5;
+    int raysPerPixel = RaysPerPixel;
     for (int r = 0; r < raysPerPixel; r++)
     {
         float2 adjustedIndices = (float2) rayIndices;
@@ -215,7 +214,7 @@ void ShadowMiss(inout RayPayload payload)
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
     // If reached max recursion, haven't hit a light source
-    if (payload.recursionDepth >= 5)
+    if (payload.recursionDepth >= MaxRecursionDepth)
     {
         payload.color = float3(0, 0, 0);
         payload.isHit = true;
@@ -277,26 +276,35 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     //   pointed towards the light source
     RayDesc shadowRay;
     shadowRay.Origin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    shadowRay.Direction = normalize(LIGHT - shadowRay.Origin);
+    
+    // Hardcode light position
+    // - This could be passed through a constant buffer,
+    //   but I'm tired, and this is simpler
+    shadowRay.Direction = normalize(float3(30, 30, 30) - shadowRay.Origin);
     shadowRay.TMin = 0.0001f;
     shadowRay.TMax = 1000.0f;
-    
+        
     // Set up shadow ray's payload
     RayPayload shadowPayload = (RayPayload) 0;
     shadowPayload.color = float3(1, 1, 1);
-    // Start at the maximum recursion depth to trigger
-    // the if statement at the start, which sets isHit
-    shadowPayload.recursionDepth = 100;
     shadowPayload.rayPerPixelIndex = payload.rayPerPixelIndex;
     shadowPayload.isHit = false;
     
+    // Start at a really big recursion depth to trigger
+    // the if statement at the start, which sets isHit to true
+    shadowPayload.recursionDepth = MaxRecursionDepth;
+    
+    // Trace the ray towards the light source
     TraceRay(
         SceneTLAS,
         RAY_FLAG_NONE,
         0xFF,
         0,
         0,
-        1,  // Offset to the shadow miss shader
+        0,  // Offset to the shadow miss shader
+            // I don't understand why this works when set to 0,
+            // and not 1. How does it know to run the ShadowMiss shader?
+            // Am I crazy? It works, so I guess I should just be thankful
         shadowRay,
         shadowPayload);
     

@@ -273,6 +273,9 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     // === Miss shader ===
     // Use an array of export descriptions to 
     // allow for multiple miss shaders
+    // - I think that's how this works?
+    // - The fact that NumExports is set to 1
+    //   is really throwing me off
     D3D12_EXPORT_DESC missExportDesc[2] = {};
     missExportDesc[0].Name = L"Miss";
     missExportDesc[0].Flags = D3D12_EXPORT_FLAG_NONE;
@@ -282,7 +285,8 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     D3D12_DXIL_LIBRARY_DESC missLibDesc = {};
     missLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
     missLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
-    missLibDesc.NumExports = 2;
+    // I would have thought this should be set to 2, but what do I know
+    missLibDesc.NumExports = 1; 
     missLibDesc.pExports = missExportDesc;
 
     D3D12_STATE_SUBOBJECT missSubObj = {};
@@ -327,7 +331,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
     // And float2 for barycentric coordinates
     shaderConfigDesc.MaxPayloadSizeInBytes = 
         sizeof(DirectX::XMFLOAT3) 
-        + (sizeof(unsigned int) * 4);
+        + (sizeof(unsigned int) * 3);
     shaderConfigDesc.MaxAttributeSizeInBytes = sizeof(DirectX::XMFLOAT2);
 
     D3D12_STATE_SUBOBJECT shaderConfigSubObj = {};
@@ -338,7 +342,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
     // === Association - Payload and shaders ===
     // Names of shaders that use the payload
-    const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
+    const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"HitGroup"};
     
     D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderPayloadAssociation = {};
     shaderPayloadAssociation.NumExports = ARRAYSIZE(payloadShaderNames);
@@ -360,7 +364,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
     // === Association - Shaders and local root sig ===
     // Names of shaders that use the root sig
-    const wchar_t* rootSigShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
+    const wchar_t* rootSigShaderNames[] = { L"RayGen", L"Miss", L"HitGroup"};
 
     // Add a state subobject for the association between
     // the RayGen shader and the local root signature
