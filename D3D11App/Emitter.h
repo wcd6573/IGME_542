@@ -25,8 +25,11 @@ class Emitter
 public:
 	Emitter(unsigned int _maxParticles, float _maxLifetime,
 		unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
+		DirectX::XMFLOAT3 _colorTint,
 		std::shared_ptr<SimpleVertexShader> _vertexShader,
-		std::shared_ptr<SimplePixelShader> _pixelShader);
+		std::shared_ptr<SimplePixelShader> _pixelShader,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
+		Microsoft::WRL::ComPtr<ID3D11SamplerState> _sampler);
 	~Emitter();
 
 	void Update(float deltaTime, float currentTime);
@@ -50,12 +53,14 @@ private:
 	float secondsPerParticle;
 	float timeSinceLastEmit;
 	std::shared_ptr<Transform> transform;
+	DirectX::XMFLOAT3 colorTint;
 
 	// --- GPU Resources ---
 	Microsoft::WRL::ComPtr<ID3D11Buffer> particleDataBuffer;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleDataSRV;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> textureSRV;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 	std::shared_ptr<SimplePixelShader> pixelShader;
 };

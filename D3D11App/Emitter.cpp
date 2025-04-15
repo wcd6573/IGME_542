@@ -14,13 +14,19 @@ using namespace DirectX;
 
 Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 	unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
+	DirectX::XMFLOAT3 _colorTint,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
-	std::shared_ptr<SimplePixelShader> _pixelShader)
+	std::shared_ptr<SimplePixelShader> _pixelShader,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> _sampler)
 	: maxParticles(_maxParticles),
 	maxLifetime(_maxLifetime),
 	particlesPerSecond(_particlesPerSecond),
+	colorTint(_colorTint),
 	vertexShader(_vertexShader),
-	pixelShader(_pixelShader)
+	pixelShader(_pixelShader),
+	textureSRV(_texture),
+	sampler(_sampler)
 {
 	// Emission rate
 	secondsPerParticle = 1.0f / particlesPerSecond;
@@ -177,12 +183,12 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 	vertexShader->SetShaderResourceView("ParticleData", particleDataSRV);
 
 	// Pixel shader data
-	
+	pixelShader->SetFloat3("colorTint", colorTint);
 	pixelShader->CopyAllBufferData();
 
 	// Set other resources
-	//pixelShader->SetShaderResourceView();
-	//pixelShader->SetSamplerState();
+	pixelShader->SetShaderResourceView("Particle", textureSRV);
+	pixelShader->SetSamplerState("BasicSampler", sampler);
 
 	// All data is set, so draw particles using DrawIndexed
 	Graphics::Context->DrawIndexed(livingParticleCount * 6, 0, 0);
