@@ -35,6 +35,7 @@ public:
 private:
 	void UpdateParticle(unsigned int index, float currentTime);
 	void EmitParticle(float currentTime);
+	void CopyToGPU();
 
 	// --- Particle array fields ---
 	unsigned int maxParticles;

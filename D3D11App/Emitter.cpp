@@ -7,6 +7,11 @@ Emitter Implementation
 #include "Emitter.h"
 #include "Graphics.h"
 
+// Helper macro for getting a float between min and max
+#define RandomRange(min, max) ((float)rand() / RAND_MAX * (max - min) + min)
+
+using namespace DirectX;
+
 Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 	unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
@@ -34,8 +39,8 @@ Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 	// --- GPU Resources Setup ---
 	{
 		// Set up index buffer with two triangles per particle
-		// - Got stuck figuring out a smart way to do this,
-		//   so I just copied the demo code
+		// - Copied straight from slides because I am too
+		//   tired to be able to have figured this out
 		int indexCount = maxParticles * 6;	// 3 triangles = 6 indices
 		unsigned int* indices = new unsigned int[indexCount];
 		int indexCount = 0;
@@ -97,40 +102,44 @@ Emitter::~Emitter()
 
 void Emitter::Update(float deltaTime, float currentTime)
 {
-	unsigned int i = 0;
-	unsigned int stop = indexFirstDead;
-
-	// --- Loop through living particles to check ages ---
-	// If the alive particles are split in the ring buffer
-	if (indexFirstAlive > indexFirstDead)
+	// Only update if there is anything to update
+	if (livingParticleCount > 0)
 	{
-		// Loop to the end of the ring buffer
-		for (i = indexFirstAlive; i < maxParticles; i++)
+		unsigned int i = 0;
+		unsigned int stop = indexFirstDead;
+
+		// --- Loop through living particles to check ages ---
+		// If the alive particles are split in the ring buffer
+		if (indexFirstAlive > indexFirstDead)
+		{
+			// Loop to the end of the ring buffer
+			for (i = indexFirstAlive; i < maxParticles; i++)
+			{
+				UpdateParticle(i, currentTime);
+			}
+
+			// Reset iterator for the beginning
+			i = 0;
+			stop = maxParticles;
+		}
+		// If alive cells are not split...
+		else if (indexFirstAlive < indexFirstDead)
+		{
+			i = indexFirstAlive;
+		}
+		// If alive index == dead index, loop through the whole array
+		else
+		{
+			i = 0;
+			stop = maxParticles;
+		}
+
+		// Loop from the leftmost alive cell (either 0 or indexFirstAlive)
+		// - No initialization, since i is set above
+		for (; i < stop; i++)
 		{
 			UpdateParticle(i, currentTime);
 		}
-
-		// Reset iterator for the beginning
-		i = 0;
-		stop = maxParticles;
-	}
-	// If alive cells are not split...
-	else if(indexFirstAlive < indexFirstDead)
-	{
-		i = indexFirstAlive;
-	}
-	// If alive index == dead index, loop through the whole array
-	else
-	{
-		i = 0;
-		stop = maxParticles;
-	}
-
-	// Loop from the leftmost alive cell (either 0 or indexFirstAlive)
-	// - No initialization, since i is set above
-	for (; i < stop; i++)
-	{
-		UpdateParticle(i, currentTime);
 	}
 
 	// Track particle emission time and emit new particles if necessary
@@ -140,7 +149,82 @@ void Emitter::Update(float deltaTime, float currentTime)
 		EmitParticle(currentTime);
 		timeSinceLastEmit -= secondsPerParticle;
 	}
+}
 
+void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
+{
+	CopyToGPU();
+
+	// Set up buffers
+	// - No vertex buffer, vertices are constructed in the shader
+	UINT stride = 0;
+	UINT offset = 0;
+	ID3D11Buffer* nullBuffer = 0;
+	Graphics::Context->IASetVertexBuffers(0, 1, &nullBuffer, &stride, &offset);
+	Graphics::Context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	// Set up shaders
+	vertexShader->SetShader();
+	pixelShader->SetShader();
+
+	// Vertex shader data
+	vertexShader->SetMatrix4x4("view", camera->GetView());
+	vertexShader->SetMatrix4x4("projection", camera->GetProjection());
+	vertexShader->SetFloat("currentTime", currentTime);
+	vertexShader->CopyAllBufferData();
+	
+	// Set structured buffer
+	vertexShader->SetShaderResourceView("ParticleData", particleDataSRV);
+
+	// Pixel shader data
+	
+	pixelShader->CopyAllBufferData();
+
+	// Set other resources
+	//pixelShader->SetShaderResourceView();
+	//pixelShader->SetSamplerState();
+
+	// All data is set, so draw particles using DrawIndexed
+	Graphics::Context->DrawIndexed(livingParticleCount * 6, 0, 0);
+}
+
+// Helper method to update a single particle's living / dead status
+void Emitter::UpdateParticle(unsigned int index, float currentTime)
+{
+	// If the particle is old enough to die
+	if ((currentTime - particles[index].EmitTime) >= maxLifetime)
+	{
+		// Update indices / counts, wrap to 0 if over the ring buffer length
+		indexFirstAlive++;
+		indexFirstAlive %= maxParticles;
+		livingParticleCount--;
+	}
+}
+
+// Helper method used to emit a single particle
+void Emitter::EmitParticle(float currentTime)
+{
+	// Don't spawn a particle if there is no room
+	if (livingParticleCount == maxParticles)
+	{
+		return;
+	}
+
+	int i = indexFirstDead;
+	
+	// Update particle data as it is spawned
+	particles[i].EmitTime = currentTime;
+	particles[i].StartPos = transform->GetPosition();
+
+	// Increment dead index and living count
+	indexFirstDead++;
+	indexFirstDead %= maxParticles;
+	livingParticleCount++;
+}
+
+// Helper method to perform the CPU -> GPU memory copy
+void Emitter::CopyToGPU()
+{
 	// Map the buffer, locking in on the GPU so we can write to it
 	D3D11_MAPPED_SUBRESOURCE mapped = {};
 	Graphics::Context->Map(particleDataBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -171,28 +255,4 @@ void Emitter::Update(float deltaTime, float currentTime)
 
 	//Unmap (unlock) now that we're done with it
 	Graphics::Context->Unmap(particleDataBuffer.Get(), 0);
-}
-
-void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
-{
-
-}
-
-// Helper method to update a single particle's living / dead status
-void Emitter::UpdateParticle(unsigned int index, float currentTime)
-{
-	// If the particle is old enough to die
-	if ((currentTime - particles[index].EmitTime) >= maxLifetime)
-	{
-		// Update indices / counts, wrap to 0 if over the ring buffer length
-		indexFirstAlive++;
-		indexFirstAlive %= maxParticles;
-		livingParticleCount--;
-	}
-}
-
-// Helper method used to emit a single particle
-void Emitter::EmitParticle(float currentTime)
-{
-
 }
