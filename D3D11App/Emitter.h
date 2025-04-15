@@ -11,6 +11,7 @@ Emitter Header
 #include <memory>
 #include "SimpleShader.h"
 #include "Camera.h"
+#include "Transform.h"
 
 // Struct representing a single particle in the system
 struct Particle {
@@ -23,7 +24,7 @@ class Emitter
 {
 public:
 	Emitter(unsigned int _maxParticles, float _maxLifetime,
-		unsigned int particlesPerSecond, float timePerEmission,
+		unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
 		std::shared_ptr<SimpleVertexShader> _vertexShader,
 		std::shared_ptr<SimplePixelShader> _pixelShader);
 	~Emitter();
@@ -32,18 +33,22 @@ public:
 	void Draw(std::shared_ptr<Camera> camera, float currentTime);
 
 private:
+	void UpdateParticle(unsigned int index, float currentTime);
+	void EmitParticle(float currentTime);
+
 	// --- Particle array fields ---
 	unsigned int maxParticles;
 	Particle* particles;
 	unsigned int indexFirstAlive;
 	unsigned int indexFirstDead;
-	unsigned int totalLivingCount;
+	unsigned int livingParticleCount;
 
 	// --- Emission properties ---
 	float maxLifetime;
 	unsigned int particlesPerSecond;
-	float timePerEmission;
-	float emitTimer;
+	float secondsPerParticle;
+	float timeSinceLastEmit;
+	std::shared_ptr<Transform> transform;
 
 	// --- GPU Resources ---
 	Microsoft::WRL::ComPtr<ID3D11Buffer> particleDataBuffer;
