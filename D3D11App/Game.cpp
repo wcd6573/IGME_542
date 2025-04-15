@@ -353,6 +353,59 @@ void Game::LoadAssetsAndCreateEntities()
 		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
 		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
 	}
+
+	// --- Particle Setup ---
+	std::shared_ptr<SimpleVertexShader> particleVS = std::make_shared<SimpleVertexShader>(
+		Graphics::Device, Graphics::Context,
+		FixPath(L"ParticleVS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> particlePS = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context,
+		FixPath(L"ParticlePS.cso").c_str());
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fire;
+#define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
+	LoadTexture(AssetPath + L"Particles/PNG_Black/fire_01.png", fire);
+#undef LoadTexture
+
+	// Create entities
+	emitters.push_back(std::make_shared<Emitter>(
+		160,					// Max particles
+		5.0f,					// Lifetime
+		30,						// Particles per second
+		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Color
+		particleVS,
+		particlePS,
+		fire,
+		sampler));
+
+	// --- Particle states ---
+	// Depth stencil state for particles
+	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Turns off depth writing
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	Graphics::Device->CreateDepthStencilState(&dsDesc, particleDepthState.GetAddressOf());
+
+	// Blend for particles (additive)
+	D3D11_BLEND_DESC blend = {};
+	blend.AlphaToCoverageEnable = false;
+	blend.IndependentBlendEnable = false;
+	blend.RenderTarget[0].BlendEnable = true;
+	blend.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blend.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blend.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blend.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	Graphics::Device->CreateBlendState(&blend, particleBlendState.GetAddressOf());
+
+	// Debug rasterizer state for particles
+	D3D11_RASTERIZER_DESC rd = {};
+	rd.CullMode = D3D11_CULL_BACK;
+	rd.DepthClipEnable = true;
+	rd.FillMode = D3D11_FILL_WIREFRAME;
+	Graphics::Device->CreateRasterizerState(&rd, particleDebugRasterState.GetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -578,6 +631,11 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
 	if (Input::KeyDown(VK_DOWN)) lightOptions.LightCount--;
 	lightOptions.LightCount = max(1, min(MAX_LIGHTS, lightOptions.LightCount));
+
+	for (auto& e : emitters)
+	{
+		e->Update(deltaTime, totalTime);
+	}
 }
 
 
@@ -630,6 +688,8 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
+
+	DrawParticles(totalTime);
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
@@ -714,4 +774,22 @@ void Game::DrawLightSources()
 		Graphics::Context->DrawIndexed(indexCount, 0, 0);
 	}
 
+}
+
+// Helper method to draw particles
+void Game::DrawParticles(float totalTime)
+{
+	Graphics::Context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);// Additive blending
+	Graphics::Context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth writing
+
+	// Draw each emitter
+	for (auto& e : emitters)
+	{
+		e->Draw(camera, totalTime);
+	}
+
+	// Reset to default states for next frame
+	Graphics::Context->OMSetBlendState(0, 0, 0xffffffff);
+	Graphics::Context->OMSetDepthStencilState(0, 0);
+	Graphics::Context->RSSetState(0);
 }

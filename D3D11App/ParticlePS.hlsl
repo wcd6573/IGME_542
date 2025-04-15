@@ -6,7 +6,7 @@ Particle Pixel Shader
 
 cbuffer externalData : register(b0)
 {
-    float3 colorTint;
+    float4 colorTint;
 };
 
 struct VertexToPixel

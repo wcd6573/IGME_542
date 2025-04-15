@@ -35,7 +35,6 @@ struct VertexToPixel
 VertexToPixel main( uint id : SV_VertexID )
 {
     VertexToPixel output;
-    float3 pos;
     
     uint particleID = id / 4; // Every group of 4 verts are one particle
     uint cornerID = id % 4;   // 0,1,2,3 = which corner of the "quad"
@@ -43,6 +42,7 @@ VertexToPixel main( uint id : SV_VertexID )
     // Grab one particle and calculate its age
     Particle p = ParticleData.Load(particleID);
     float age = currentTime - p.EmitTime;
+    float3 pos = p.StartPosition;
 
     // --- Billboarding ---
     // Fill in offsets for each corner of the quad

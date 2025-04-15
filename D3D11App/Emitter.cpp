@@ -14,7 +14,7 @@ using namespace DirectX;
 
 Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 	unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
-	DirectX::XMFLOAT3 _colorTint,
+	DirectX::XMFLOAT4 _colorTint,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
 	std::shared_ptr<SimplePixelShader> _pixelShader,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
@@ -183,7 +183,7 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 	vertexShader->SetShaderResourceView("ParticleData", particleDataSRV);
 
 	// Pixel shader data
-	pixelShader->SetFloat3("colorTint", colorTint);
+	pixelShader->SetFloat4("colorTint", colorTint);
 	pixelShader->CopyAllBufferData();
 
 	// Set other resources
