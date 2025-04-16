@@ -47,10 +47,10 @@ Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 		// Set up index buffer with two triangles per particle
 		// - Copied straight from slides because I am too
 		//   tired to be able to have figured this out
-		int indexCount = maxParticles * 6;	// 3 triangles = 6 indices
-		unsigned int* indices = new unsigned int[indexCount];
+		int numIndices = maxParticles * 6;	// 3 triangles = 6 indices
+		unsigned int* indices = new unsigned int[numIndices];
 		int indexCount = 0;
-		for (int i = 0; i < maxParticles * 4; i += 4)
+		for (unsigned int i = 0; i < maxParticles * 4; i += 4)
 		{
 			indices[indexCount++] = i;
 			indices[indexCount++] = i + 1;
@@ -111,40 +111,37 @@ void Emitter::Update(float deltaTime, float currentTime)
 	// Only update if there is anything to update
 	if (livingParticleCount > 0)
 	{
-		unsigned int i = 0;
-		unsigned int stop = indexFirstDead;
-
-		// --- Loop through living particles to check ages ---
 		// If the alive particles are split in the ring buffer
 		if (indexFirstAlive > indexFirstDead)
 		{
-			// Loop to the end of the ring buffer
-			for (i = indexFirstAlive; i < maxParticles; i++)
+			// Loop through first chunk
+			for (int i = indexFirstAlive; i < maxParticles; i++)
 			{
-				UpdateParticle(i, currentTime);
+				UpdateParticle(currentTime, i);
 			}
 
-			// Reset iterator for the beginning
-			i = 0;
-			stop = maxParticles;
+			// Then wrap around
+			for (int i = 0; i < indexFirstDead; i++)
+			{
+				UpdateParticle(currentTime, i);
+			}
 		}
 		// If alive cells are not split...
 		else if (indexFirstAlive < indexFirstDead)
 		{
-			i = indexFirstAlive;
+			for (int i = indexFirstAlive; i < indexFirstDead; i++)
+			{
+				UpdateParticle(currentTime, i);
+			}
 		}
 		// If alive index == dead index, loop through the whole array
+		// since they might all be alive (or they might all be dead)
 		else
 		{
-			i = 0;
-			stop = maxParticles;
-		}
-
-		// Loop from the leftmost alive cell (either 0 or indexFirstAlive)
-		// - No initialization, since i is set above
-		for (; i < stop; i++)
-		{
-			UpdateParticle(i, currentTime);
+			for (int i = 0; i < maxParticles; i++)
+			{
+				UpdateParticle(currentTime, i);
+			}
 		}
 	}
 

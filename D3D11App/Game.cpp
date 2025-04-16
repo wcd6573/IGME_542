@@ -259,7 +259,7 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
 	floor->GetTransform()->SetScale(25, 25, 25);
 	floor->GetTransform()->SetPosition(0, -27, 0);
-	entitiesRandom.push_back(floor);
+	//entitiesRandom.push_back(floor);
 
 	for (int i = 0; i < 32; i++)
 	{
@@ -302,6 +302,7 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<GameEntity> woodSphere = std::make_shared<GameEntity>(sphereMesh, woodMat);
 	woodSphere->GetTransform()->SetPosition(6, 0, 0);
 
+	/*
 	entitiesLineup.push_back(cobSphere);
 	entitiesLineup.push_back(floorSphere);
 	entitiesLineup.push_back(paintSphere);
@@ -309,7 +310,7 @@ void Game::LoadAssetsAndCreateEntities()
 	entitiesLineup.push_back(bronzeSphere);
 	entitiesLineup.push_back(roughSphere);
 	entitiesLineup.push_back(woodSphere);
-
+	*/
 
 
 	// === Create a gradient of entities based on roughness & metalness ====
@@ -346,8 +347,8 @@ void Game::LoadAssetsAndCreateEntities()
 		// Create the entities
 		std::shared_ptr<GameEntity> geMetal = std::make_shared<GameEntity>(sphereMesh, matMetal);
 		std::shared_ptr<GameEntity> geNonMetal = std::make_shared<GameEntity>(sphereMesh, matNonMetal);
-		entitiesGradient.push_back(geMetal);
-		entitiesGradient.push_back(geNonMetal);
+		//entitiesGradient.push_back(geMetal);
+		//entitiesGradient.push_back(geNonMetal);
 
 		// Move and scale them
 		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
@@ -372,6 +373,7 @@ void Game::LoadAssetsAndCreateEntities()
 		160,					// Max particles
 		5.0f,					// Lifetime
 		30,						// Particles per second
+		XMFLOAT3(0, 0, 0),		// Position
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Color
 		particleVS,
 		particlePS,
