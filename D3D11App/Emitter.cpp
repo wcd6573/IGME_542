@@ -12,8 +12,8 @@ Emitter Implementation
 
 using namespace DirectX;
 
-Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
-	unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
+Emitter::Emitter(int _maxParticles, float _maxLifetime,
+	int _particlesPerSecond, DirectX::XMFLOAT3 _position,
 	DirectX::XMFLOAT4 _colorTint,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
 	std::shared_ptr<SimplePixelShader> _pixelShader,
@@ -29,10 +29,13 @@ Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 	sampler(_sampler)
 {
 	// Emission rate
-	secondsPerParticle = 1.0f / particlesPerSecond;
+	secondsPerParticle = 1.0f / _particlesPerSecond;
+
+	// Setup particle array	
+	particles = new Particle[_maxParticles];
+	ZeroMemory(particles, sizeof(Particle) * _maxParticles); // Necessary?
 
 	// Set up emission fields
-	particles = new Particle[_maxParticles];
 	indexFirstAlive = 0;
 	indexFirstDead = 0;
 	livingParticleCount = 0;
@@ -50,7 +53,7 @@ Emitter::Emitter(unsigned int _maxParticles, float _maxLifetime,
 		int numIndices = maxParticles * 6;	// 3 triangles = 6 indices
 		unsigned int* indices = new unsigned int[numIndices];
 		int indexCount = 0;
-		for (unsigned int i = 0; i < maxParticles * 4; i += 4)
+		for (int i = 0; i < maxParticles * 4; i += 4)
 		{
 			indices[indexCount++] = i;
 			indices[indexCount++] = i + 1;
@@ -111,8 +114,16 @@ void Emitter::Update(float deltaTime, float currentTime)
 	// Only update if there is anything to update
 	if (livingParticleCount > 0)
 	{
+		// If alive cells are not split...
+		if (indexFirstAlive < indexFirstDead)
+		{
+			for (int i = indexFirstAlive; i < indexFirstDead; i++)
+			{
+				UpdateParticle(currentTime, i);
+			}
+		}
 		// If the alive particles are split in the ring buffer
-		if (indexFirstAlive > indexFirstDead)
+		else if (indexFirstDead < indexFirstAlive)
 		{
 			// Loop through first chunk
 			for (int i = indexFirstAlive; i < maxParticles; i++)
@@ -122,14 +133,6 @@ void Emitter::Update(float deltaTime, float currentTime)
 
 			// Then wrap around
 			for (int i = 0; i < indexFirstDead; i++)
-			{
-				UpdateParticle(currentTime, i);
-			}
-		}
-		// If alive cells are not split...
-		else if (indexFirstAlive < indexFirstDead)
-		{
-			for (int i = indexFirstAlive; i < indexFirstDead; i++)
 			{
 				UpdateParticle(currentTime, i);
 			}
@@ -192,10 +195,12 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 }
 
 // Helper method to update a single particle's living / dead status
-void Emitter::UpdateParticle(unsigned int index, float currentTime)
+void Emitter::UpdateParticle(float currentTime, int index)
 {
+	float age = currentTime - particles[index].EmitTime;
+
 	// If the particle is old enough to die
-	if ((currentTime - particles[index].EmitTime) >= maxLifetime)
+	if (age >= maxLifetime)
 	{
 		// Update indices / counts, wrap to 0 if over the ring buffer length
 		indexFirstAlive++;

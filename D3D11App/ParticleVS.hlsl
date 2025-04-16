@@ -41,7 +41,7 @@ VertexToPixel main( uint id : SV_VertexID )
     // Grab one particle and calculate its age
     Particle p = ParticleData.Load(particleID);
     float age = currentTime - p.EmitTime;
-    float3 pos = p.StartPosition;
+    float3 pos = p.StartPosition + (normalize(float3(0.5, 1, 0.5)) * age);
 
     // --- Billboarding ---
     // Fill in offsets for each corner of the quad

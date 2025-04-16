@@ -372,7 +372,7 @@ void Game::LoadAssetsAndCreateEntities()
 	emitters.push_back(std::make_shared<Emitter>(
 		160,					// Max particles
 		5.0f,					// Lifetime
-		30,						// Particles per second
+		2.0f,					// Particles per second
 		XMFLOAT3(0, 0, 0),		// Position
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Color
 		particleVS,
@@ -634,6 +634,7 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_DOWN)) lightOptions.LightCount--;
 	lightOptions.LightCount = max(1, min(MAX_LIGHTS, lightOptions.LightCount));
 
+	// Update emitters
 	for (auto& e : emitters)
 	{
 		e->Update(deltaTime, totalTime);
@@ -691,6 +692,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
 
+	// Call helper function to draw emitted particles
 	DrawParticles(totalTime);
 
 	// Frame END
@@ -781,6 +783,7 @@ void Game::DrawLightSources()
 // Helper method to draw particles
 void Game::DrawParticles(float totalTime)
 {
+	// Set particle blend / depth states
 	Graphics::Context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);// Additive blending
 	Graphics::Context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth writing
 

@@ -23,8 +23,8 @@ struct Particle {
 class Emitter
 {
 public:
-	Emitter(unsigned int _maxParticles, float _maxLifetime,
-		unsigned int _particlesPerSecond, DirectX::XMFLOAT3 _position,
+	Emitter(int _maxParticles, float _maxLifetime,
+		int _particlesPerSecond, DirectX::XMFLOAT3 _position,
 		DirectX::XMFLOAT4 _colorTint,
 		std::shared_ptr<SimpleVertexShader> _vertexShader,
 		std::shared_ptr<SimplePixelShader> _pixelShader,
@@ -36,20 +36,16 @@ public:
 	void Draw(std::shared_ptr<Camera> camera, float currentTime);
 
 private:
-	void UpdateParticle(unsigned int index, float currentTime);
-	void EmitParticle(float currentTime);
-	void CopyToGPU();
-
 	// --- Particle array fields ---
-	unsigned int maxParticles;
+	int maxParticles;
 	Particle* particles;
-	unsigned int indexFirstAlive;
-	unsigned int indexFirstDead;
-	unsigned int livingParticleCount;
+	int indexFirstAlive;
+	int indexFirstDead;
+	int livingParticleCount;
 
 	// --- Emission properties ---
 	float maxLifetime;
-	unsigned int particlesPerSecond;
+	int particlesPerSecond;
 	float secondsPerParticle;
 	float timeSinceLastEmit;
 	std::shared_ptr<Transform> transform;
@@ -63,5 +59,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 	std::shared_ptr<SimplePixelShader> pixelShader;
+
+	// --- Helper methods ---
+	void UpdateParticle(float currentTime, int index);
+	void EmitParticle(float currentTime);
+	void CopyToGPU();
 };
 
