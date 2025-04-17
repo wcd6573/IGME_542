@@ -27,6 +27,8 @@ struct Particle
 {
     float EmitTime;
     float3 StartPosition;
+    float3 StartVelocity;
+    float pad;
 };
 
 // Buffer of particle data
@@ -52,7 +54,9 @@ VertexToPixel main( uint id : SV_VertexID )
     Particle p = ParticleData.Load(particleID);
     float age = currentTime - p.EmitTime;
     float ageFrac = age / lifetime;
-    float3 pos = p.StartPosition + (normalize(float3(0.5, 1, 0.5)) * age);
+    
+    // Calculate position using age and starting velocity
+    float3 pos = p.StartPosition + (p.StartVelocity * age);
 
     // --- Billboarding ---
     // Fill in offsets for each corner of the quad
@@ -63,11 +67,12 @@ VertexToPixel main( uint id : SV_VertexID )
     offsets[3] = float2(-1.0f, -1.0f); // Bottom left
     
     // Offset position based on camera's right and up vectors
+    float size = lerp(startSize, endSize, ageFrac);
     pos += float3(view._11, view._12, view._13) * (offsets[cornerID].x
-        * lerp(startSize, endSize, ageFrac)); // right
+        * size); // right
     
     pos += float3(view._21, view._22, view._23) * (offsets[cornerID].y
-        * lerp(startSize, endSize, ageFrac)); // up
+        * size); // up
     
     // Calculate output position using view and projection matrices
     matrix viewProj = mul(projection, view);

@@ -17,6 +17,8 @@ Emitter Header
 struct Particle {
 	float EmitTime;
 	DirectX::XMFLOAT3 StartPos;
+	DirectX::XMFLOAT3 StartVelocity;
+	float pad;
 };
 
 // Class that contains particles, and emits / updates them
@@ -28,6 +30,8 @@ public:
 		float _maxLifetime,
 		int _particlesPerSecond, 
 		DirectX::XMFLOAT3 _position,
+		DirectX::XMFLOAT3 _startVelocity,
+		DirectX::XMFLOAT3 _startVelocityRange,
 		float _startSize,
 		float _endSize,
 		DirectX::XMFLOAT4 _startColor, 
@@ -55,8 +59,10 @@ private:
 	float secondsPerParticle;
 	float timeSinceLastEmit;
 	std::shared_ptr<Transform> transform;
-	
+
 	// --- Particle properties ---
+	DirectX::XMFLOAT3 startVelocity;
+	DirectX::XMFLOAT3 startVelocityRange;
 	float startSize;
 	float endSize;
 	DirectX::XMFLOAT4 startColor;

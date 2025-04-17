@@ -372,8 +372,10 @@ void Game::LoadAssetsAndCreateEntities()
 	emitters.push_back(std::make_shared<Emitter>(
 		160,					// Max particles
 		5.0f,					// Lifetime
-		2,						// Particles per second
+		30,						// Particles per second
 		XMFLOAT3(0, 0, 0),		// Emitter position
+		XMFLOAT3(0.5f, 0.5f, 0),	// Start velocity
+		XMFLOAT3(0.1f, 0.25f, 0),	// Start velocity random range
 		0.1f,					// Start size
 		1.5f,					// End size
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),		// Start color

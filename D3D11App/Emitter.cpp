@@ -17,6 +17,8 @@ Emitter::Emitter(
 	float _maxLifetime,
 	int _particlesPerSecond, 
 	DirectX::XMFLOAT3 _position,
+	DirectX::XMFLOAT3 _startVelocity,
+	DirectX::XMFLOAT3 _startVelocityRange,
 	float _startSize,
 	float _endSize,
 	DirectX::XMFLOAT4 _startColor, 
@@ -28,6 +30,8 @@ Emitter::Emitter(
 	: maxParticles(_maxParticles),
 	maxLifetime(_maxLifetime),
 	particlesPerSecond(_particlesPerSecond),
+	startVelocity(_startVelocity),
+	startVelocityRange(_startVelocityRange),
 	startSize(_startSize),
 	endSize(_endSize),
 	startColor(_startColor),
@@ -242,6 +246,14 @@ void Emitter::EmitParticle(float currentTime)
 	// Update particle data as it is spawned
 	particles[i].EmitTime = currentTime;
 	particles[i].StartPos = transform->GetPosition();
+
+	// Randomize starting velocity
+	// - There's probably some DirectXMath way to go about this,
+	//   but this works just fine
+	particles[i].StartVelocity = startVelocity;
+	particles[i].StartVelocity.x += startVelocityRange.x * RandomRange(-1.0f, 1.0f);
+	particles[i].StartVelocity.y += startVelocityRange.y * RandomRange(-1.0f, 1.0f);
+	particles[i].StartVelocity.z += startVelocityRange.z * RandomRange(-1.0f, 1.0f);
 
 	// Increment dead index and living count
 	indexFirstDead++;
