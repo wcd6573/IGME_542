@@ -50,7 +50,6 @@ Emitter::Emitter(
 
 	// Setup particle array	
 	particles = new Particle[_maxParticles];
-	ZeroMemory(particles, sizeof(Particle) * _maxParticles); // Necessary?
 
 	// Set up emission fields
 	indexFirstAlive = 0;
@@ -253,7 +252,7 @@ void Emitter::EmitParticle(float currentTime)
 	
 	// Randomize starting position
 	// - There's probably some DirectXMath way to go about this,
-	//   but this works just fine
+	//   but this works fine
 	particles[i].StartPos = transform->GetPosition();
 	particles[i].StartPos.x += positionRange.x * RandomRange(-1.0f, 1.0f);
 	particles[i].StartPos.y += positionRange.y * RandomRange(-1.0f, 1.0f);

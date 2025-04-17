@@ -364,28 +364,72 @@ void Game::LoadAssetsAndCreateEntities()
 		FixPath(L"ParticlePS.cso").c_str());
 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fire;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> star;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> magic;
+
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
 	LoadTexture(AssetPath + L"Particles/PNG_Black/fire_01.png", fire);
+	LoadTexture(AssetPath + L"Particles/PNG_Black/star_01.png", star);
+	LoadTexture(AssetPath + L"Particles/PNG_Black/magic_02.png", magic);
 #undef LoadTexture
 
-	// Create entities
+	// --- Create emitters ---
+	// Fire
 	emitters.push_back(std::make_shared<Emitter>(
-		160,						// Max particles
-		5.0f,						// Lifetime
-		30,							// Particles per second
-		XMFLOAT3(0, 0, 0),			// Emitter position
-		XMFLOAT3(0.1f, 0.1f, 0),	// Position random range
-		XMFLOAT3(1.0f, 1.5f, 0),	// Start velocity
-		XMFLOAT3(0.1f, 0.25f, 0),	// Start velocity random range
-		XMFLOAT3(0, -0.5f, 0),		// Global acceleration	
-		0.1f,						// Start size
-		1.5f,						// End size
+		160,								// Max particles
+		5.0f,								// Lifetime
+		30,									// Particles per second
+		XMFLOAT3(-5, -5, 0),				// Emitter position
+		XMFLOAT3(0.1f, 0.1f, 0),			// Position random range
+		XMFLOAT3(1.0f, 1.5f, 0),			// Start velocity
+		XMFLOAT3(0.1f, 0.25f, 0),			// Start velocity random range
+		XMFLOAT3(0, -0.5f, 0),				// Global acceleration	
+		0.1f,								// Start size
+		1.5f,								// End size
+		XMFLOAT4(1, 1, 1, 0.7f),			// Start color
+		XMFLOAT4(0.1f, 0.1f, 1, 0.5f),		// End color
+		particleVS,							// Vertex shader
+		particlePS,							// Pixel shader
+		fire,								// Texture SRV
+		sampler));							// Sampler
+
+	// Star fountain
+	emitters.push_back(std::make_shared<Emitter>(
+		80,									// Max particles
+		2.5f,								// Lifetime
+		15,									// Particles per second
+		XMFLOAT3(5, -5, 0),					// Emitter position
+		XMFLOAT3(0, 0, 0),					// Position random range
+		XMFLOAT3(0, 1, 0),					// Start velocity
+		XMFLOAT3(1, 0, 1),					// Start velocity random range
+		XMFLOAT3(-0.5f, -0.15f, 0),			// Global acceleration	
+		1.0f,								// Start size
+		0.1f,								// End size
+		XMFLOAT4(0.1f, 0.1f, 0.1f, 1),		// Start color
+		XMFLOAT4(0.5f, 1, 0.5f, 1),			// End color
+		particleVS,							// Vertex shader
+		particlePS,							// Pixel shader
+		star,								// Texture SRV
+		sampler));							// Sampler
+
+	// Pulsing magic circles
+	emitters.push_back(std::make_shared<Emitter>(
+		30,									// Max particles
+		1.0f,								// Lifetime
+		50,									// Particles per second
+		XMFLOAT3(0, 2.5f, 0),				// Emitter position
+		XMFLOAT3(2.5f, 0, 0),				// Position random range
+		XMFLOAT3(0, 0, 0),					// Start velocity
+		XMFLOAT3(0.5f, 0, 0),				// Start velocity random range
+		XMFLOAT3(0, 0, 0),					// Global acceleration	
+		0.1f,								// Start size
+		2.5f,								// End size
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),		// Start color
 		XMFLOAT4(0.5f, 0.3f, 0.1f, 0.5f),	// End color
-		particleVS,					// Vertex shader
-		particlePS,					// Pixel shader
-		fire,						// Texture SRV
-		sampler));					// Sampler
+		particleVS,							// Vertex shader
+		particlePS,							// Pixel shader
+		magic,								// Texture SRV
+		sampler));							// Sampler
 
 	// --- Particle states ---
 	// Depth stencil state for particles
