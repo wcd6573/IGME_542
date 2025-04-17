@@ -10,10 +10,12 @@ cbuffer ExternalData : register(b0)
     matrix view;
     matrix projection;
     
-    // Particle colors
+    // Particle properties
     float4 startColor;
     float4 endColor;
     
+    float startSize;
+    float endSize;
     float currentTime;
     float lifetime;
 }
@@ -49,6 +51,7 @@ VertexToPixel main( uint id : SV_VertexID )
     // Grab one particle and calculate its age
     Particle p = ParticleData.Load(particleID);
     float age = currentTime - p.EmitTime;
+    float ageFrac = age / lifetime;
     float3 pos = p.StartPosition + (normalize(float3(0.5, 1, 0.5)) * age);
 
     // --- Billboarding ---
@@ -60,8 +63,11 @@ VertexToPixel main( uint id : SV_VertexID )
     offsets[3] = float2(-1.0f, -1.0f); // Bottom left
     
     // Offset position based on camera's right and up vectors
-    pos += float3(view._11, view._12, view._13) * offsets[cornerID].x; // right
-    pos += float3(view._21, view._22, view._23) * offsets[cornerID].y; // up
+    pos += float3(view._11, view._12, view._13) * (offsets[cornerID].x
+        * lerp(startSize, endSize, ageFrac)); // right
+    
+    pos += float3(view._21, view._22, view._23) * (offsets[cornerID].y
+        * lerp(startSize, endSize, ageFrac)); // up
     
     // Calculate output position using view and projection matrices
     matrix viewProj = mul(projection, view);
@@ -76,7 +82,7 @@ VertexToPixel main( uint id : SV_VertexID )
     output.uv = uvs[cornerID];
     
     // Interpolate color based on age as a fraction of total lifetime
-    output.colorTint = lerp(startColor, endColor, age / lifetime);
+    output.colorTint = lerp(startColor, endColor, ageFrac);
     
     return output;
 }

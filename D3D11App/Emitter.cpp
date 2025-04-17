@@ -12,9 +12,15 @@ Emitter Implementation
 
 using namespace DirectX;
 
-Emitter::Emitter(int _maxParticles, float _maxLifetime,
-	int _particlesPerSecond, DirectX::XMFLOAT3 _position,
-	DirectX::XMFLOAT4 _startColor, DirectX::XMFLOAT4 _endColor,
+Emitter::Emitter(
+	int _maxParticles, 
+	float _maxLifetime,
+	int _particlesPerSecond, 
+	DirectX::XMFLOAT3 _position,
+	float _startSize,
+	float _endSize,
+	DirectX::XMFLOAT4 _startColor, 
+	DirectX::XMFLOAT4 _endColor,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
 	std::shared_ptr<SimplePixelShader> _pixelShader,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
@@ -22,6 +28,8 @@ Emitter::Emitter(int _maxParticles, float _maxLifetime,
 	: maxParticles(_maxParticles),
 	maxLifetime(_maxLifetime),
 	particlesPerSecond(_particlesPerSecond),
+	startSize(_startSize),
+	endSize(_endSize),
 	startColor(_startColor),
 	endColor(_endColor),
 	vertexShader(_vertexShader),
@@ -185,6 +193,8 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 	vertexShader->SetFloat4("startColor", startColor);
 	vertexShader->SetFloat4("endColor", endColor);
 	vertexShader->SetFloat("lifetime", maxLifetime);
+	vertexShader->SetFloat("startSize", startSize);
+	vertexShader->SetFloat("endSize", endSize);
 
 	vertexShader->CopyAllBufferData();
 	

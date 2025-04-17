@@ -372,14 +372,16 @@ void Game::LoadAssetsAndCreateEntities()
 	emitters.push_back(std::make_shared<Emitter>(
 		160,					// Max particles
 		5.0f,					// Lifetime
-		2.0f,					// Particles per second
-		XMFLOAT3(0, 0, 0),		// Position
-		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Start color
-		XMFLOAT4(0.4f, 0.2f, 0.1f, 0.3f),  // End color
-		particleVS,
-		particlePS,
-		fire,
-		sampler));
+		2,						// Particles per second
+		XMFLOAT3(0, 0, 0),		// Emitter position
+		0.1f,					// Start size
+		1.5f,					// End size
+		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),		// Start color
+		XMFLOAT4(0.4f, 0.2f, 0.1f, 0.3f),	// End color
+		particleVS,				// Vertex shader
+		particlePS,				// Pixel shader
+		fire,					// Texture SRV
+		sampler));				// Sampler
 
 	// --- Particle states ---
 	// Depth stencil state for particles
