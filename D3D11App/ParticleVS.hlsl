@@ -18,6 +18,8 @@ cbuffer ExternalData : register(b0)
     float endSize;
     float currentTime;
     float lifetime;
+    
+    float3 acceleration;
 }
 
 // Struct for particle data needed to render it, 
@@ -56,7 +58,7 @@ VertexToPixel main( uint id : SV_VertexID )
     float ageFrac = age / lifetime;
     
     // Calculate position using age and starting velocity
-    float3 pos = p.StartPosition + (p.StartVelocity * age);
+    float3 pos = p.StartPosition + (p.StartVelocity * age) + (0.5f * acceleration * age * age);
 
     // --- Billboarding ---
     // Fill in offsets for each corner of the quad

@@ -59,7 +59,7 @@ void Game::Initialize()
 		.UsePBR = true,
 		.FreezeLightMovement = false,
 		.DrawLights = true,
-		.ShowSkybox = true,
+		.ShowSkybox = false,
 		.UseBurleyDiffuse = false,
 		.AmbientColor = XMFLOAT3(0,0,0)
 	};
@@ -370,20 +370,22 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create entities
 	emitters.push_back(std::make_shared<Emitter>(
-		160,					// Max particles
-		5.0f,					// Lifetime
-		30,						// Particles per second
-		XMFLOAT3(0, 0, 0),		// Emitter position
-		XMFLOAT3(0.5f, 0.5f, 0),	// Start velocity
+		160,						// Max particles
+		5.0f,						// Lifetime
+		30,							// Particles per second
+		XMFLOAT3(0, 0, 0),			// Emitter position
+		XMFLOAT3(0.1f, 0.1f, 0),	// Position random range
+		XMFLOAT3(1.0f, 1.5f, 0),	// Start velocity
 		XMFLOAT3(0.1f, 0.25f, 0),	// Start velocity random range
-		0.1f,					// Start size
-		1.5f,					// End size
+		XMFLOAT3(0, -0.5f, 0),		// Global acceleration	
+		0.1f,						// Start size
+		1.5f,						// End size
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),		// Start color
-		XMFLOAT4(0.4f, 0.2f, 0.1f, 0.3f),	// End color
-		particleVS,				// Vertex shader
-		particlePS,				// Pixel shader
-		fire,					// Texture SRV
-		sampler));				// Sampler
+		XMFLOAT4(0.5f, 0.3f, 0.1f, 0.5f),	// End color
+		particleVS,					// Vertex shader
+		particlePS,					// Pixel shader
+		fire,						// Texture SRV
+		sampler));					// Sampler
 
 	// --- Particle states ---
 	// Depth stencil state for particles

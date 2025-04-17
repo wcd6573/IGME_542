@@ -14,11 +14,13 @@ Emitter Header
 #include "Transform.h"
 
 // Struct representing a single particle in the system
+// - Padding included to hit those nice byte boundaries
 struct Particle {
 	float EmitTime;
 	DirectX::XMFLOAT3 StartPos;
+
 	DirectX::XMFLOAT3 StartVelocity;
-	float pad;
+	float padding;
 };
 
 // Class that contains particles, and emits / updates them
@@ -30,8 +32,10 @@ public:
 		float _maxLifetime,
 		int _particlesPerSecond, 
 		DirectX::XMFLOAT3 _position,
+		DirectX::XMFLOAT3 _positionRange,
 		DirectX::XMFLOAT3 _startVelocity,
 		DirectX::XMFLOAT3 _startVelocityRange,
+		DirectX::XMFLOAT3 _acceleration,
 		float _startSize,
 		float _endSize,
 		DirectX::XMFLOAT4 _startColor, 
@@ -61,8 +65,10 @@ private:
 	std::shared_ptr<Transform> transform;
 
 	// --- Particle properties ---
+	DirectX::XMFLOAT3 positionRange;
 	DirectX::XMFLOAT3 startVelocity;
 	DirectX::XMFLOAT3 startVelocityRange;
+	DirectX::XMFLOAT3 acceleration;
 	float startSize;
 	float endSize;
 	DirectX::XMFLOAT4 startColor;
