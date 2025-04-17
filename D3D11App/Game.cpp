@@ -374,7 +374,8 @@ void Game::LoadAssetsAndCreateEntities()
 		5.0f,					// Lifetime
 		2.0f,					// Particles per second
 		XMFLOAT3(0, 0, 0),		// Position
-		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Color
+		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Start color
+		XMFLOAT4(0.4f, 0.2f, 0.1f, 0.3f),  // End color
 		particleVS,
 		particlePS,
 		fire,

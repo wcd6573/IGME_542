@@ -1,14 +1,21 @@
 /*
 William Duprey
-4/14/25
+4/16/25
 Particle Vertex Shader
 */
 
 cbuffer ExternalData : register(b0)
 {
+    // Camera matrices
     matrix view;
     matrix projection;
+    
+    // Particle colors
+    float4 startColor;
+    float4 endColor;
+    
     float currentTime;
+    float lifetime;
 }
 
 // Struct for particle data needed to render it, 
@@ -27,6 +34,7 @@ struct VertexToPixel
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float4 colorTint : COLOR;
 };
 
 // Entry point for our particle-specific vertex shader
@@ -66,6 +74,9 @@ VertexToPixel main( uint id : SV_VertexID )
     uvs[2] = float2(1, 1); // Bottom right
     uvs[3] = float2(0, 1); // Bottom left
     output.uv = uvs[cornerID];
+    
+    // Interpolate color based on age as a fraction of total lifetime
+    output.colorTint = lerp(startColor, endColor, age / lifetime);
     
     return output;
 }

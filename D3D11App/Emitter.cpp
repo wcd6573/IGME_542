@@ -1,6 +1,6 @@
 /*
 William Duprey
-4/13/25
+4/16/25
 Emitter Implementation
 */
 
@@ -14,7 +14,7 @@ using namespace DirectX;
 
 Emitter::Emitter(int _maxParticles, float _maxLifetime,
 	int _particlesPerSecond, DirectX::XMFLOAT3 _position,
-	DirectX::XMFLOAT4 _colorTint,
+	DirectX::XMFLOAT4 _startColor, DirectX::XMFLOAT4 _endColor,
 	std::shared_ptr<SimpleVertexShader> _vertexShader,
 	std::shared_ptr<SimplePixelShader> _pixelShader,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
@@ -22,7 +22,8 @@ Emitter::Emitter(int _maxParticles, float _maxLifetime,
 	: maxParticles(_maxParticles),
 	maxLifetime(_maxLifetime),
 	particlesPerSecond(_particlesPerSecond),
-	colorTint(_colorTint),
+	startColor(_startColor),
+	endColor(_endColor),
 	vertexShader(_vertexShader),
 	pixelShader(_pixelShader),
 	textureSRV(_texture),
@@ -157,6 +158,10 @@ void Emitter::Update(float deltaTime, float currentTime)
 	}
 }
 
+// Function to draw the emitter
+// - Camera for the view / projection matrices
+// - Current time to send along to the Vertex Shader for updating
+//   the particle based on its age
 void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 {
 	CopyToGPU();
@@ -177,13 +182,17 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime)
 	vertexShader->SetMatrix4x4("view", camera->GetView());
 	vertexShader->SetMatrix4x4("projection", camera->GetProjection());
 	vertexShader->SetFloat("currentTime", currentTime);
+	vertexShader->SetFloat4("startColor", startColor);
+	vertexShader->SetFloat4("endColor", endColor);
+	vertexShader->SetFloat("lifetime", maxLifetime);
+
 	vertexShader->CopyAllBufferData();
 	
 	// Set structured buffer
 	vertexShader->SetShaderResourceView("ParticleData", particleDataSRV);
 
 	// Pixel shader data
-	pixelShader->SetFloat4("colorTint", colorTint);
+	//pixelShader->SetFloat4("colorTint", colorTint);
 	pixelShader->CopyAllBufferData();
 
 	// Set other resources

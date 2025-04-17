@@ -1,6 +1,6 @@
 /*
 William Duprey
-4/13/25
+4/16/25
 Emitter Header
 */
 
@@ -25,7 +25,7 @@ class Emitter
 public:
 	Emitter(int _maxParticles, float _maxLifetime,
 		int _particlesPerSecond, DirectX::XMFLOAT3 _position,
-		DirectX::XMFLOAT4 _colorTint,
+		DirectX::XMFLOAT4 _startColor, DirectX::XMFLOAT4 _endColor,
 		std::shared_ptr<SimpleVertexShader> _vertexShader,
 		std::shared_ptr<SimplePixelShader> _pixelShader,
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _texture,
@@ -49,7 +49,8 @@ private:
 	float secondsPerParticle;
 	float timeSinceLastEmit;
 	std::shared_ptr<Transform> transform;
-	DirectX::XMFLOAT4 colorTint;
+	DirectX::XMFLOAT4 startColor;
+	DirectX::XMFLOAT4 endColor;
 
 	// --- GPU Resources ---
 	Microsoft::WRL::ComPtr<ID3D11Buffer> particleDataBuffer;
