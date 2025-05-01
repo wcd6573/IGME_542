@@ -59,7 +59,7 @@ void Game::Initialize()
 		.UsePBR = true,
 		.FreezeLightMovement = false,
 		.DrawLights = true,
-		.ShowSkybox = false,
+		.ShowSkybox = true,
 		.UseBurleyDiffuse = false,
 		.AmbientColor = XMFLOAT3(0,0,0)
 	};
@@ -111,6 +111,54 @@ void Game::LoadAssetsAndCreateEntities()
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	Graphics::Device->CreateSamplerState(&sampDesc, sampler.GetAddressOf());
 
+	// Load textures
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobbleA, cobbleN, cobbleR, cobbleM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> floorA, floorN, floorR, floorM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> paintA, paintN, paintR, paintM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> scratchedA, scratchedN, scratchedR, scratchedM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> bronzeA, bronzeN, bronzeR, bronzeM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughA, roughN, roughR, roughM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodA, woodN, woodR, woodM;
+
+	// Quick pre-processor macro for simplifying texture loading calls below
+#define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_albedo.png", cobbleA);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_normals.png", cobbleN);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_roughness.png", cobbleR);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_metal.png", cobbleM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/floor_albedo.png", floorA);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_normals.png", floorN);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_roughness.png", floorR);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_metal.png", floorM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/paint_albedo.png", paintA);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_normals.png", paintN);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_roughness.png", paintR);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_metal.png", paintM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_albedo.png", scratchedA);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_normals.png", scratchedN);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_roughness.png", scratchedR);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_metal.png", scratchedM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_albedo.png", bronzeA);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_normals.png", bronzeN);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_roughness.png", bronzeR);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_metal.png", bronzeM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/rough_albedo.png", roughA);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_normals.png", roughN);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_roughness.png", roughR);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_metal.png", roughM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/wood_albedo.png", woodA);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_normals.png", woodN);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png", woodR);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", woodM);
+#undef LoadTexture
+
+
 	// Load shaders (some are saved for later)
 	vertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
 	pixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
@@ -145,110 +193,166 @@ void Game::LoadAssetsAndCreateEntities()
 		skyPS,
 		sampler);
 
-	// --- Particle Setup ---
-	std::shared_ptr<SimpleVertexShader> particleVS = std::make_shared<SimpleVertexShader>(
-		Graphics::Device, Graphics::Context,
-		FixPath(L"ParticleVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> particlePS = std::make_shared<SimplePixelShader>(
-		Graphics::Device, Graphics::Context,
-		FixPath(L"ParticlePS.cso").c_str());
 
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fire;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> star;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> magic;
 
-#define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
-	LoadTexture(AssetPath + L"Particles/PNG_Black/fire_01.png", fire);
-	LoadTexture(AssetPath + L"Particles/PNG_Black/star_01.png", star);
-	LoadTexture(AssetPath + L"Particles/PNG_Black/magic_02.png", magic);
-#undef LoadTexture
+	// Create basic materials
+	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>("Cobblestone (2x Scale)", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	cobbleMat2x->AddSampler("BasicSampler", sampler);
+	cobbleMat2x->AddTextureSRV("Albedo", cobbleA);
+	cobbleMat2x->AddTextureSRV("NormalMap", cobbleN);
+	cobbleMat2x->AddTextureSRV("RoughnessMap", cobbleR);
+	cobbleMat2x->AddTextureSRV("MetalMap", cobbleM);
 
-	// --- Create emitters ---
-	// Fire
-	emitters.push_back(std::make_shared<Emitter>(
-		160,								// Max particles
-		5.0f,								// Lifetime
-		30,									// Particles per second
-		XMFLOAT3(-5, -5, 0),				// Emitter position
-		XMFLOAT3(0.1f, 0.1f, 0),			// Position random range
-		XMFLOAT3(1.0f, 1.5f, 0),			// Start velocity
-		XMFLOAT3(0.1f, 0.25f, 0),			// Start velocity random range
-		XMFLOAT3(0, -0.5f, 0),				// Global acceleration	
-		0.1f,								// Start size
-		1.5f,								// End size
-		XMFLOAT4(1, 1, 1, 0.7f),			// Start color
-		XMFLOAT4(0.1f, 0.1f, 1, 0.5f),		// End color
-		particleVS,							// Vertex shader
-		particlePS,							// Pixel shader
-		fire,								// Texture SRV
-		sampler));							// Sampler
+	std::shared_ptr<Material> cobbleMat4x = std::make_shared<Material>("Cobblestone (4x Scale)", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 4));
+	cobbleMat4x->AddSampler("BasicSampler", sampler);
+	cobbleMat4x->AddTextureSRV("Albedo", cobbleA);
+	cobbleMat4x->AddTextureSRV("NormalMap", cobbleN);
+	cobbleMat4x->AddTextureSRV("RoughnessMap", cobbleR);
+	cobbleMat4x->AddTextureSRV("MetalMap", cobbleM);
 
-	// Star fountain
-	emitters.push_back(std::make_shared<Emitter>(
-		80,									// Max particles
-		2.5f,								// Lifetime
-		15,									// Particles per second
-		XMFLOAT3(5, -5, 0),					// Emitter position
-		XMFLOAT3(0, 0, 0),					// Position random range
-		XMFLOAT3(0, 1, 0),					// Start velocity
-		XMFLOAT3(1, 0, 1),					// Start velocity random range
-		XMFLOAT3(-0.5f, -0.15f, 0),			// Global acceleration	
-		1.0f,								// Start size
-		0.1f,								// End size
-		XMFLOAT4(0.1f, 0.1f, 0.1f, 1),		// Start color
-		XMFLOAT4(0.5f, 1, 0.5f, 1),			// End color
-		particleVS,							// Vertex shader
-		particlePS,							// Pixel shader
-		star,								// Texture SRV
-		sampler));							// Sampler
+	std::shared_ptr<Material> floorMat = std::make_shared<Material>("Metal Floor", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	floorMat->AddSampler("BasicSampler", sampler);
+	floorMat->AddTextureSRV("Albedo", floorA);
+	floorMat->AddTextureSRV("NormalMap", floorN);
+	floorMat->AddTextureSRV("RoughnessMap", floorR);
+	floorMat->AddTextureSRV("MetalMap", floorM);
 
-	// Pulsing magic circles
-	emitters.push_back(std::make_shared<Emitter>(
-		30,									// Max particles
-		1.0f,								// Lifetime
-		50,									// Particles per second
-		XMFLOAT3(0, 2.5f, 0),				// Emitter position
-		XMFLOAT3(2.5f, 0, 0),				// Position random range
-		XMFLOAT3(0, 0, 0),					// Start velocity
-		XMFLOAT3(0.5f, 0, 0),				// Start velocity random range
-		XMFLOAT3(0, 0, 0),					// Global acceleration	
-		0.1f,								// Start size
-		2.5f,								// End size
-		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),		// Start color
-		XMFLOAT4(0.5f, 0.3f, 0.1f, 0.5f),	// End color
-		particleVS,							// Vertex shader
-		particlePS,							// Pixel shader
-		magic,								// Texture SRV
-		sampler));							// Sampler
+	std::shared_ptr<Material> paintMat = std::make_shared<Material>("Blue Paint", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	paintMat->AddSampler("BasicSampler", sampler);
+	paintMat->AddTextureSRV("Albedo", paintA);
+	paintMat->AddTextureSRV("NormalMap", paintN);
+	paintMat->AddTextureSRV("RoughnessMap", paintR);
+	paintMat->AddTextureSRV("MetalMap", paintM);
 
-	// --- Particle states ---
-	// Depth stencil state for particles
-	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
-	dsDesc.DepthEnable = true;
-	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Turns off depth writing
-	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
-	Graphics::Device->CreateDepthStencilState(&dsDesc, particleDepthState.GetAddressOf());
+	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>("Scratched Paint", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	scratchedMat->AddSampler("BasicSampler", sampler);
+	scratchedMat->AddTextureSRV("Albedo", scratchedA);
+	scratchedMat->AddTextureSRV("NormalMap", scratchedN);
+	scratchedMat->AddTextureSRV("RoughnessMap", scratchedR);
+	scratchedMat->AddTextureSRV("MetalMap", scratchedM);
 
-	// Blend for particles (additive)
-	D3D11_BLEND_DESC blend = {};
-	blend.AlphaToCoverageEnable = false;
-	blend.IndependentBlendEnable = false;
-	blend.RenderTarget[0].BlendEnable = true;
-	blend.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blend.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-	blend.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
-	blend.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	blend.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	blend.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
-	blend.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	Graphics::Device->CreateBlendState(&blend, particleBlendState.GetAddressOf());
+	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>("Bronze", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	bronzeMat->AddSampler("BasicSampler", sampler);
+	bronzeMat->AddTextureSRV("Albedo", bronzeA);
+	bronzeMat->AddTextureSRV("NormalMap", bronzeN);
+	bronzeMat->AddTextureSRV("RoughnessMap", bronzeR);
+	bronzeMat->AddTextureSRV("MetalMap", bronzeM);
 
-	// Debug rasterizer state for particles
-	D3D11_RASTERIZER_DESC rd = {};
-	rd.CullMode = D3D11_CULL_BACK;
-	rd.DepthClipEnable = true;
-	rd.FillMode = D3D11_FILL_WIREFRAME;
-	Graphics::Device->CreateRasterizerState(&rd, particleDebugRasterState.GetAddressOf());
+	std::shared_ptr<Material> roughMat = std::make_shared<Material>("Rough Metal", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	roughMat->AddSampler("BasicSampler", sampler);
+	roughMat->AddTextureSRV("Albedo", roughA);
+	roughMat->AddTextureSRV("NormalMap", roughN);
+	roughMat->AddTextureSRV("RoughnessMap", roughR);
+	roughMat->AddTextureSRV("MetalMap", roughM);
+
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
+	woodMat->AddSampler("BasicSampler", sampler);
+	woodMat->AddTextureSRV("Albedo", woodA);
+	woodMat->AddTextureSRV("NormalMap", woodN);
+	woodMat->AddTextureSRV("RoughnessMap", woodR);
+	woodMat->AddTextureSRV("MetalMap", woodM);
+
+	// Add materials to list
+	materials.insert(materials.end(), { cobbleMat2x, cobbleMat4x, floorMat, paintMat, scratchedMat, bronzeMat, roughMat, woodMat });
+
+	// === Create the "randomized" entities, with a static floor ===========
+	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
+	floor->GetTransform()->SetScale(25, 25, 25);
+	floor->GetTransform()->SetPosition(0, -27, 0);
+	entitiesRandom.push_back(floor);
+
+	for (int i = 0; i < 32; i++)
+	{
+		std::shared_ptr<Material> whichMat = floorMat;
+		switch (i % 7)
+		{
+		case 0: whichMat = floorMat; break;
+		case 1: whichMat = paintMat; break;
+		case 2: whichMat = cobbleMat2x; break;
+		case 3: whichMat = scratchedMat; break;
+		case 4: whichMat = bronzeMat; break;
+		case 5: whichMat = roughMat; break;
+		case 6: whichMat = woodMat; break;
+		}
+
+		std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whichMat);
+		entitiesRandom.push_back(sphere);
+	}
+	RandomizeEntities();
+
+	// === Create the line up entities =====================================
+	std::shared_ptr<GameEntity> cobSphere = std::make_shared<GameEntity>(sphereMesh, cobbleMat2x);
+	cobSphere->GetTransform()->SetPosition(-6, 0, 0);
+
+	std::shared_ptr<GameEntity> floorSphere = std::make_shared<GameEntity>(sphereMesh, floorMat);
+	floorSphere->GetTransform()->SetPosition(-4, 0, 0);
+
+	std::shared_ptr<GameEntity> paintSphere = std::make_shared<GameEntity>(sphereMesh, paintMat);
+	paintSphere->GetTransform()->SetPosition(-2, 0, 0);
+
+	std::shared_ptr<GameEntity> scratchSphere = std::make_shared<GameEntity>(sphereMesh, scratchedMat);
+	scratchSphere->GetTransform()->SetPosition(0, 0, 0);
+
+	std::shared_ptr<GameEntity> bronzeSphere = std::make_shared<GameEntity>(sphereMesh, bronzeMat);
+	bronzeSphere->GetTransform()->SetPosition(2, 0, 0);
+
+	std::shared_ptr<GameEntity> roughSphere = std::make_shared<GameEntity>(sphereMesh, roughMat);
+	roughSphere->GetTransform()->SetPosition(4, 0, 0);
+
+	std::shared_ptr<GameEntity> woodSphere = std::make_shared<GameEntity>(sphereMesh, woodMat);
+	woodSphere->GetTransform()->SetPosition(6, 0, 0);
+
+	entitiesLineup.push_back(cobSphere);
+	entitiesLineup.push_back(floorSphere);
+	entitiesLineup.push_back(paintSphere);
+	entitiesLineup.push_back(scratchSphere);
+	entitiesLineup.push_back(bronzeSphere);
+	entitiesLineup.push_back(roughSphere);
+	entitiesLineup.push_back(woodSphere);
+
+
+
+	// === Create a gradient of entities based on roughness & metalness ====
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal0SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0, 0, 0, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal1SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
+
+	for (int i = 0; i <= 10; i++)
+	{
+		// Roughness value for this entity
+		float r = i / 10.0f;
+
+		// Create textures
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(r, r, r, 1));
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> normalSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
+
+		// Set up the materials
+		std::shared_ptr<Material> matMetal = std::make_shared<Material>("Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
+		matMetal->AddSampler("BasicSampler", sampler);
+		matMetal->AddTextureSRV("Albedo", albedoSRV);
+		matMetal->AddTextureSRV("NormalMap", normalSRV);
+		matMetal->AddTextureSRV("RoughnessMap", roughSRV);
+		matMetal->AddTextureSRV("MetalMap", metal1SRV);
+
+		std::shared_ptr<Material> matNonMetal = std::make_shared<Material>("Non-Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
+		matNonMetal->AddSampler("BasicSampler", sampler);
+		matNonMetal->AddTextureSRV("Albedo", albedoSRV);
+		matNonMetal->AddTextureSRV("NormalMap", normalSRV);
+		matNonMetal->AddTextureSRV("RoughnessMap", roughSRV);
+		matNonMetal->AddTextureSRV("MetalMap", metal0SRV);
+
+		materials.insert(materials.end(), { matMetal, matNonMetal });
+
+		// Create the entities
+		std::shared_ptr<GameEntity> geMetal = std::make_shared<GameEntity>(sphereMesh, matMetal);
+		std::shared_ptr<GameEntity> geNonMetal = std::make_shared<GameEntity>(sphereMesh, matNonMetal);
+		entitiesGradient.push_back(geMetal);
+		entitiesGradient.push_back(geNonMetal);
+
+		// Move and scale them
+		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
+		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
+	}
 }
 
 // --------------------------------------------------------
@@ -474,12 +578,6 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
 	if (Input::KeyDown(VK_DOWN)) lightOptions.LightCount--;
 	lightOptions.LightCount = max(1, min(MAX_LIGHTS, lightOptions.LightCount));
-
-	// Update emitters
-	for (auto& e : emitters)
-	{
-		e->Update(deltaTime, totalTime);
-	}
 }
 
 
@@ -532,9 +630,6 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
-
-	// Call helper function to draw emitted particles
-	DrawParticles(totalTime);
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
@@ -619,23 +714,4 @@ void Game::DrawLightSources()
 		Graphics::Context->DrawIndexed(indexCount, 0, 0);
 	}
 
-}
-
-// Helper method to draw particles
-void Game::DrawParticles(float totalTime)
-{
-	// Set particle blend / depth states
-	Graphics::Context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);// Additive blending
-	Graphics::Context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth writing
-
-	// Draw each emitter
-	for (auto& e : emitters)
-	{
-		e->Draw(camera, totalTime);
-	}
-
-	// Reset to default states for next frame
-	Graphics::Context->OMSetBlendState(0, 0, 0xffffffff);
-	Graphics::Context->OMSetDepthStencilState(0, 0);
-	Graphics::Context->RSSetState(0);
 }

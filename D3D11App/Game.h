@@ -12,7 +12,6 @@
 #include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
-#include "Emitter.h"
 
 class Game
 {
@@ -68,12 +67,5 @@ private:
 	// Shaders for solid color spheres
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
-
-	// Particle fields
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;
-	Microsoft::WRL::ComPtr<ID3D11BlendState> particleBlendState;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> particleDebugRasterState;
-	std::vector<std::shared_ptr<Emitter>> emitters;
-	void DrawParticles(float totalTime);
 };
 
