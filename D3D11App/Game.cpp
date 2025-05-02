@@ -1,3 +1,10 @@
+/*
+William Duprey
+5/2/25
+Game Implementation
+ - Starter code provided by Prof. Chris Cascioli
+*/
+
 #include "Game.h"
 #include "Graphics.h"
 #include "Vertex.h"
@@ -47,6 +54,7 @@ void Game::Initialize()
 	LoadAssetsAndCreateEntities();
 	currentScene = &entitiesLineup;
 	GenerateLights();
+	SetupMRT();
 
 	// Set up defaults for lighting options
 	lightOptions = {
@@ -94,6 +102,48 @@ Game::~Game()
 	ImGui::DestroyContext();
 }
 
+
+// --------------------------------------------------------
+// Helper function to set up resources for multiple render
+// targets. Called during initialization, and again if
+// the window is ever resized.
+// --------------------------------------------------------
+void Game::SetupMRT()
+{
+	// --- Set up multiple render targets ---
+	// Set up the scene textures
+	// - Must use D3D11_BIND_RENDER_TARGET or rtv creation will fail
+	D3D11_TEXTURE2D_DESC texDesc = {};
+	texDesc.Width = Window::Width();
+	texDesc.Height = Window::Height();
+	texDesc.ArraySize = 1;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.MipLevels = 1;	// No mip chain needed for render target
+	texDesc.MiscFlags = 0;
+	texDesc.SampleDesc.Count = 1;
+	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneColorsTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneNormalTexture.GetAddressOf());
+
+	// Set up the render target views
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D; // Points to a Texture2D
+	rtvDesc.Texture2D.MipSlice = 0;	// Which mip are we rendering into?
+	rtvDesc.Format = texDesc.Format; // Same format as texture
+	Graphics::Device->CreateRenderTargetView(sceneColorsTexture.Get(), &rtvDesc, sceneColorsRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(sceneNormalTexture.Get(), &rtvDesc, sceneNormalRTV.GetAddressOf());
+
+	// Set up the shader resource views
+	// - Can use default, since this is just a Texture2D with no mip levels
+	Graphics::Device->CreateShaderResourceView(
+		sceneColorsTexture.Get(),		// Texture resource
+		0,								// Null description, default SRV options
+		sceneColorsSRV.GetAddressOf());	// ComPtr for the SRV
+	Graphics::Device->CreateShaderResourceView(
+		sceneNormalTexture.Get(),		// Texture resource
+		0,								// Null description, default SRV options
+		sceneNormalSRV.GetAddressOf());	// ComPtr for the SRV
+}
 
 // --------------------------------------------------------
 // Loads assets and creates the geometry we're going to draw
@@ -482,6 +532,19 @@ void Game::OnResize()
 {
 	// Update the camera's projection to match the new aspect ratio
 	if (camera) camera->UpdateProjectionMatrix(Window::AspectRatio());
+
+	// Release MRT resources
+	// - Underlying texture is released too
+	if (sceneColorsRTV)
+	{
+		sceneColorsRTV->Release();
+		sceneColorsSRV->Release();
+		sceneNormalRTV->Release();
+		sceneNormalSRV->Release();
+
+		// Recreate MRT resources
+		SetupMRT();
+	}
 }
 
 
@@ -594,6 +657,17 @@ void Game::Draw(float deltaTime, float totalTime)
 		const float color[4] = { 0, 0, 0, 0 };
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+		
+		// Clear render target views
+		Graphics::Context->ClearRenderTargetView(sceneColorsRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(sceneNormalRTV.Get(), color);
+
+		// Set up multiple render targets
+		ID3D11RenderTargetView* renderTargets[2] = {};
+		renderTargets[0] = sceneColorsRTV.Get();
+		renderTargets[1] = sceneNormalRTV.Get();
+
+		Graphics::Context->OMSetRenderTargets(2, renderTargets, Graphics::DepthBufferDSV.Get());
 	}
 
 	// DRAW geometry

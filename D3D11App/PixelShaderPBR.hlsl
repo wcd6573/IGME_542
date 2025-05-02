@@ -27,6 +27,14 @@ cbuffer ExternalData : register(b0)
 	int useBurleyDiffuse;
 }
 
+// Struct to output multiple pieces of data
+// for multiple render targets
+struct PS_Output
+{
+    float4 color	: SV_TARGET0;
+    float4 normals	: SV_TARGET1;
+};
+
 // Texture related resources
 Texture2D Albedo				: register(t0);
 Texture2D NormalMap				: register(t1);
@@ -37,7 +45,7 @@ SamplerState BasicSampler		: register(s0);
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
 // --------------------------------------------------------
-float4 main(VertexToPixel input) : SV_TARGET
+PS_Output main(VertexToPixel input)
 {
 	// Clean up un-normalized normals
 	input.normal = normalize(input.normal);
@@ -100,5 +108,10 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Should have the complete light contribution at this point. 
 	// Gamma correct if necessary
 	float3 final = gammaCorrection ? pow(totalLight, 1.0f / 2.2f) : totalLight;
-	return float4(final, 1);
+	
+	// Set up MRT output
+    PS_Output output;
+    output.color = float4(final, 1);
+    output.normals = float4(input.normal * 0.5f + 0.5f, 1);
+    return output;
 }

@@ -1,3 +1,10 @@
+/*
+William Duprey
+5/2/25
+Game Header
+ - Starter code provided by Prof. Chris Cascioli
+*/
+
 #pragma once
 
 #include <d3d11.h>
@@ -40,6 +47,7 @@ private:
 	void RandomizeEntities();
 	void GenerateLights();
 	void DrawLightSources();
+	void SetupMRT();
 
 	// Camera for the 3D scene
 	std::shared_ptr<FPSCamera> camera;
@@ -67,5 +75,16 @@ private:
 	// Shaders for solid color spheres
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
+
+	// Multiple Render Target Fields
+	// Default scene colors
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneColorsTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneColorsRTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColorsSRV;
+
+	// Scene normals
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneNormalTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneNormalRTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormalSRV;
 };
 
