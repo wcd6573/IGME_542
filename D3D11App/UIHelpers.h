@@ -21,6 +21,7 @@ void BuildUI(
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
 	DemoLightingOptions& lightOptions,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTexture,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal);
 

@@ -45,6 +45,7 @@ void BuildUI(
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
 	DemoLightingOptions& lightOptions,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTexture,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal)
 {
@@ -278,6 +279,8 @@ void BuildUI(
 		// === Post processes ===
 		if (ImGui::TreeNode("Post Process"))
 		{
+			ImGui::Text("Random Texture");
+			ImGui::Image(randomTexture.Get(), ImVec2(256, 256));
 			ImGui::Text("Scene Colors");
 			ImGui::Image(sceneColors.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
 			ImGui::Text("Scene Normals");

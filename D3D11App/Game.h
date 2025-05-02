@@ -48,6 +48,7 @@ private:
 	void GenerateLights();
 	void DrawLightSources();
 	void SetupMRT();
+	void CreateRandom4x4TextureAndOffsetArray();
 
 	// Camera for the 3D scene
 	std::shared_ptr<FPSCamera> camera;
@@ -76,19 +77,43 @@ private:
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
-	// SSAO Fields
+	// --- SSAO Fields ---
+	// Shader Fields
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> clampSampler;
 	std::shared_ptr<SimplePixelShader> occlusionPS;
 	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTextureSRV;
+	DirectX::XMFLOAT4* ssaoOffsets;
 
-	// Default scene colors
+	// Textures, RTVs, and SRVs
+	// Scene colors
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneColorsTexture;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneColorsRTV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColorsSRV;
+
+	// Ambient colors
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> ambientTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> ambientRTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ambientSRV;
+
+	// Scene depths
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneDepthTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneDepthRTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepthSRV;
 
 	// Scene normals
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneNormalTexture;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneNormalRTV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormalSRV;
+
+	// SSAO Results
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> ssaoResultTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> ssaoResultRTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResultSRV;
+
+	// Blurred SSAO
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> blurSSAOTexture;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurSSAORTV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAOSRV;
 };
 

@@ -55,6 +55,7 @@ void Game::Initialize()
 	currentScene = &entitiesLineup;
 	GenerateLights();
 	SetupMRT();
+	CreateRandom4x4TextureAndOffsetArray();
 
 	// Set up defaults for lighting options
 	lightOptions = {
@@ -465,6 +466,74 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Game::CreateSolidColorTextureSR
 
 
 // --------------------------------------------------------
+// Helper method to create a random 4x4 for SSAO
+// --------------------------------------------------------
+void Game::CreateRandom4x4TextureAndOffsetArray()
+{
+	// --- Create a random texture for SSAO ---
+	const int textureSize = 4;
+	const int totalPixels = textureSize * textureSize;
+	XMFLOAT4 randomPixels[totalPixels] = {};
+	for (int i = 0; i < totalPixels; i++)
+	{
+		XMVECTOR randomVec = XMVectorSet(RandomRange(-1, 1), RandomRange(-1, 1), 0, 1);
+		XMStoreFloat4(&randomPixels[i], XMVector3Normalize(randomVec));
+	}
+
+	// Create a simple texture of the specified size
+	D3D11_TEXTURE2D_DESC td = {};
+	td.ArraySize = 1;
+	td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	td.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	td.MipLevels = 1;
+	td.Height = textureSize;
+	td.Width = textureSize;
+	td.SampleDesc.Count = 1;
+
+	// Initial data for the texture
+	D3D11_SUBRESOURCE_DATA data = {};
+	data.pSysMem = randomPixels;
+	data.SysMemPitch = sizeof(float) * 4 * textureSize;
+
+	// Actually create it
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+	Graphics::Device->CreateTexture2D(&td, &data, texture.GetAddressOf());
+
+	// Create the shader resource view for this texture
+	// Note: Passing in a null description creates a standard
+	// SRV that has access to the entire resource (all mips, if they exist)
+	Graphics::Device->CreateShaderResourceView(texture.Get(), 0, randomTextureSRV.GetAddressOf());
+
+	/*
+	// --- Create an array of offsets ---
+	// Count must match shader
+	ssaoOffsets[64] = {};
+
+	for (int i = 0; i < 64; i++)
+	{
+		// Offsets should be in a hemisphere ([-1,1], [-1,1], [0,1])
+		// Note: Must be stored as float4's due to cbuffer data packing!
+		ssaoOffsets[i] = XMFLOAT4(
+			(float)rand() / RAND_MAX * 2 - 1, // -1 to 1
+			(float)rand() / RAND_MAX * 2 - 1, // -1 to 1
+			(float)rand() / RAND_MAX,	      // 0 to 1
+			0);
+		XMVECTOR offset = XMVector3Normalize(XMLoadFloat4(&ssaoOffsets[i]));
+
+		// Scale over hte array, such that more of the values are
+		// closer to the minimum than hte maximum
+		float scale = (float)i / 64;
+		XMVECTOR acceleratedScale = XMVectorLerp(
+			XMVectorSet(0.1f, 0.1f, 0.1f, 1),
+			XMVectorSet(1, 1, 1, 1),
+			scale * scale);
+		XMStoreFloat4(&ssaoOffsets[i], offset * acceleratedScale);
+	}
+	*/
+}
+
+
+// --------------------------------------------------------
 // Creates 3 specific directional lights and many
 // randomized point lights
 // --------------------------------------------------------
@@ -569,7 +638,8 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, sceneColorsSRV, sceneNormalSRV);
+	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, 
+		randomTextureSRV, sceneColorsSRV, sceneNormalSRV);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
