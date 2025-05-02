@@ -44,7 +44,9 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions)
+	DemoLightingOptions& lightOptions,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -270,6 +272,16 @@ void BuildUI(
 		if (ImGui::TreeNode("Sky Box"))
 		{
 			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
+			ImGui::TreePop();
+		}
+
+		// === Post processes ===
+		if (ImGui::TreeNode("Post Process"))
+		{
+			ImGui::Text("Scene Colors");
+			ImGui::Image(sceneColors.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Text("Scene Normals");
+			ImGui::Image(sceneNormal.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
 			ImGui::TreePop();
 		}
 	}

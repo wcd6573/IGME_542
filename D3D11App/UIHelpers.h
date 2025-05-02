@@ -20,7 +20,9 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions);
+	DemoLightingOptions& lightOptions,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal);
 
 // Helpers for individual scene elements
 void UIMesh(std::shared_ptr<Mesh> mesh);

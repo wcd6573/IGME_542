@@ -161,6 +161,16 @@ void Game::LoadAssetsAndCreateEntities()
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	Graphics::Device->CreateSamplerState(&sampDesc, sampler.GetAddressOf());
 
+	// Create a sampler state for clamping post process
+	D3D11_SAMPLER_DESC clampDesc = {};
+	clampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	clampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	clampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	clampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	clampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	Graphics::Device->CreateSamplerState(&clampDesc, clampSampler.GetAddressOf());
+
+
 	// Load textures
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobbleA, cobbleN, cobbleR, cobbleM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> floorA, floorN, floorR, floorM;
@@ -214,6 +224,8 @@ void Game::LoadAssetsAndCreateEntities()
 	pixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
 	pixelShaderPBR = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShaderPBR.cso").c_str());
 	solidColorPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SolidColorPS.cso").c_str());
+	fullscreenVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"FullscreenVS.cso").c_str());
+	occlusionPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionPS.cso").c_str());
 	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 
@@ -557,7 +569,7 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions);
+	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, sceneColorsSRV, sceneNormalSRV);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -704,6 +716,24 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
+
+	// --- Post Process ---
+	// Restore the back buffer
+	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+
+	// Use the full screen triangle vertex shader to render to the screen,
+	// Set pixel shader texture and sampler, then draw
+	fullscreenVS->SetShader();
+	occlusionPS->SetShader();
+	occlusionPS->SetShaderResourceView("Pixels", sceneColorsSRV.Get());
+	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
+	Graphics::Context->Draw(3, 0);
+
+	// Unbind textures to fix D3D warnings
+	// (sceneColors cannot be a depth buffer 
+	// and shader resource at the same time)
+	ID3D11ShaderResourceView* nullSRVs[128] = {};
+	Graphics::Context->PSSetShaderResources(0, 128, nullSRVs);
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME

@@ -76,7 +76,11 @@ private:
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
-	// Multiple Render Target Fields
+	// SSAO Fields
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> clampSampler;
+	std::shared_ptr<SimplePixelShader> occlusionPS;
+	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+
 	// Default scene colors
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> sceneColorsTexture;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneColorsRTV;
