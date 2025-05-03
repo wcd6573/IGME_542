@@ -188,7 +188,7 @@ void BuildUI(
 					lightOptions.UseMetalMap = false;
 					lightOptions.UseNormalMap = false;
 					lightOptions.UseRoughnessMap = false;
-					lightOptions.UsePBR = false;
+					//lightOptions.UsePBR = false;
 				}
 				else
 				{
@@ -201,7 +201,7 @@ void BuildUI(
 				}
 			}
 			ImGui::Checkbox("Gamma Correction", &lightOptions.GammaCorrection);
-			ImGui::Checkbox("Use PBR Materials", &lightOptions.UsePBR);
+			//ImGui::Checkbox("Use PBR Materials", &lightOptions.UsePBR);
 			ImGui::Checkbox("Albedo Texture", &lightOptions.UseAlbedoTexture);
 			ImGui::Checkbox("Normal Map", &lightOptions.UseNormalMap);
 			ImGui::Checkbox("Roughness Map", &lightOptions.UseRoughnessMap);

@@ -79,6 +79,7 @@ private:
 
 	// --- SSAO Fields ---
 	// Shader Fields
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> clampSampler;
 	std::shared_ptr<SimplePixelShader> occlusionPS;
 	std::shared_ptr<SimpleVertexShader> fullscreenVS;

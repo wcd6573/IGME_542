@@ -101,6 +101,9 @@ Game::~Game()
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	
+	// Clean up ssaoOffsets array
+	if(ssaoOffsets) delete[] ssaoOffsets;
 }
 
 
@@ -125,6 +128,10 @@ void Game::SetupMRT()
 	texDesc.SampleDesc.Count = 1;
 	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneColorsTexture.GetAddressOf());
 	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneNormalTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&texDesc, 0, ambientTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneDepthTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&texDesc, 0, ssaoResultTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&texDesc, 0, blurSSAOTexture.GetAddressOf());
 
 	// Set up the render target views
 	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -133,6 +140,10 @@ void Game::SetupMRT()
 	rtvDesc.Format = texDesc.Format; // Same format as texture
 	Graphics::Device->CreateRenderTargetView(sceneColorsTexture.Get(), &rtvDesc, sceneColorsRTV.GetAddressOf());
 	Graphics::Device->CreateRenderTargetView(sceneNormalTexture.Get(), &rtvDesc, sceneNormalRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(ambientTexture.Get(), &rtvDesc, ambientRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(sceneDepthTexture.Get(), &rtvDesc, sceneDepthRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(ssaoResultTexture.Get(), &rtvDesc, ssaoResultRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(blurSSAOTexture.Get(), &rtvDesc, blurSSAORTV.GetAddressOf());
 
 	// Set up the shader resource views
 	// - Can use default, since this is just a Texture2D with no mip levels
@@ -140,10 +151,11 @@ void Game::SetupMRT()
 		sceneColorsTexture.Get(),		// Texture resource
 		0,								// Null description, default SRV options
 		sceneColorsSRV.GetAddressOf());	// ComPtr for the SRV
-	Graphics::Device->CreateShaderResourceView(
-		sceneNormalTexture.Get(),		// Texture resource
-		0,								// Null description, default SRV options
-		sceneNormalSRV.GetAddressOf());	// ComPtr for the SRV
+	Graphics::Device->CreateShaderResourceView(sceneNormalTexture.Get(), 0, sceneNormalSRV.GetAddressOf());
+	Graphics::Device->CreateShaderResourceView(ambientTexture.Get(), 0, ambientSRV.GetAddressOf());
+	Graphics::Device->CreateShaderResourceView(sceneDepthTexture.Get(), 0, sceneDepthSRV.GetAddressOf());
+	Graphics::Device->CreateShaderResourceView(ssaoResultTexture.Get(), 0, ssaoResultSRV.GetAddressOf());
+	Graphics::Device->CreateShaderResourceView(blurSSAOTexture.Get(), 0, blurSSAOSRV.GetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -152,7 +164,6 @@ void Game::SetupMRT()
 void Game::LoadAssetsAndCreateEntities()
 {
 	// Create a sampler state for texture sampling options
-	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	D3D11_SAMPLER_DESC sampDesc = {};
 	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP; // What happens outside the 0-1 uv range?
 	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -504,10 +515,10 @@ void Game::CreateRandom4x4TextureAndOffsetArray()
 	// SRV that has access to the entire resource (all mips, if they exist)
 	Graphics::Device->CreateShaderResourceView(texture.Get(), 0, randomTextureSRV.GetAddressOf());
 
-	/*
+	
 	// --- Create an array of offsets ---
 	// Count must match shader
-	ssaoOffsets[64] = {};
+	ssaoOffsets = new DirectX::XMFLOAT4[64];
 
 	for (int i = 0; i < 64; i++)
 	{
@@ -520,8 +531,8 @@ void Game::CreateRandom4x4TextureAndOffsetArray()
 			0);
 		XMVECTOR offset = XMVector3Normalize(XMLoadFloat4(&ssaoOffsets[i]));
 
-		// Scale over hte array, such that more of the values are
-		// closer to the minimum than hte maximum
+		// Scale over the array, such that more of the values are
+		// closer to the minimum than the maximum
 		float scale = (float)i / 64;
 		XMVECTOR acceleratedScale = XMVectorLerp(
 			XMVectorSet(0.1f, 0.1f, 0.1f, 1),
@@ -529,7 +540,6 @@ void Game::CreateRandom4x4TextureAndOffsetArray()
 			scale * scale);
 		XMStoreFloat4(&ssaoOffsets[i], offset * acceleratedScale);
 	}
-	*/
 }
 
 
@@ -622,6 +632,14 @@ void Game::OnResize()
 		sceneColorsSRV->Release();
 		sceneNormalRTV->Release();
 		sceneNormalSRV->Release();
+		ambientRTV->Release();
+		ambientSRV->Release();
+		sceneDepthRTV->Release();
+		sceneDepthSRV->Release();
+		ssaoResultRTV->Release();
+		ssaoResultSRV->Release();
+		blurSSAORTV->Release();
+		blurSSAOSRV->Release();
 
 		// Recreate MRT resources
 		SetupMRT();
@@ -681,7 +699,7 @@ void Game::Update(float deltaTime, float totalTime)
 			lightOptions.UseMetalMap = false;
 			lightOptions.UseNormalMap = false;
 			lightOptions.UseRoughnessMap = false;
-			lightOptions.UsePBR = false;
+			//lightOptions.UsePBR = false;
 		}
 		else
 		{
@@ -714,10 +732,13 @@ void Game::Update(float deltaTime, float totalTime)
 		currentScene = &entitiesRandom;
 	}
 
+	/*
+	* Just keep PBR on
 	if (Input::KeyPress('P'))
 	{
 		lightOptions.UsePBR = !lightOptions.UsePBR;
 	}
+	*/
 
 	// Handle light count changes, clamped appropriately
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
@@ -758,10 +779,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : *currentScene)
 	{
-		// For this demo, the pixel shader may change on any frame, so
-		// we're just going to swap it here.  This isn't optimal but
-		// it's a simply implementation for this demo.
-		std::shared_ptr<SimplePixelShader> ps = lightOptions.UsePBR ? pixelShaderPBR : pixelShader;
+		std::shared_ptr<SimplePixelShader> ps = pixelShaderPBR;
 		e->GetMaterial()->SetPixelShader(ps);
 
 		// Set total time on this entity's material's pixel shader
@@ -776,7 +794,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		ps->SetInt("useNormalMap", (int)lightOptions.UseNormalMap);
 		ps->SetInt("useRoughnessMap", (int)lightOptions.UseRoughnessMap);
 		ps->SetInt("useBurleyDiffuse", (int)lightOptions.UseBurleyDiffuse);
-
+	
 		// Draw one entity
 		e->Draw(camera);
 	}
@@ -797,6 +815,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	occlusionPS->SetShader();
 	occlusionPS->SetShaderResourceView("Pixels", sceneColorsSRV.Get());
 	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
+	
+	// Set SSAO offsets in shader shader
+	occlusionPS->SetData("ssaoOffsets", &ssaoOffsets[0], sizeof(DirectX::XMFLOAT4) * 64);
+
 	Graphics::Context->Draw(3, 0);
 
 	// Unbind textures to fix D3D warnings

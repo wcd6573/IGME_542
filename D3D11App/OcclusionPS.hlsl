@@ -4,6 +4,11 @@ William Duprey
 Screen Space Ambient Occlusion Pixel Shader
 */
 
+cbuffer ExternalData : register(b0)
+{
+    float4 ssaoOffsets[64];
+}
+	
 struct VertexToPixel 
 {
 	float4 position : SV_POSITION;
