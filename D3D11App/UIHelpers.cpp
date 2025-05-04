@@ -293,6 +293,9 @@ void BuildUI(
 			ImGui::Image(sceneNormal.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
 			ImGui::Text("Scene Depths");
 			ImGui::Image(sceneDepth.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Text("SSAO Results");
+			ImGui::Image(ssaoResult.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			
 			ImGui::TreePop();
 		}
 	}

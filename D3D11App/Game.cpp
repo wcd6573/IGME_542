@@ -805,20 +805,40 @@ void Game::Draw(float deltaTime, float totalTime)
 	if (lightOptions.DrawLights) DrawLightSources();
 
 	// --- Post Process ---
-	// Restore the back buffer
-	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+	// Render to the ssaoResult texture
+	Graphics::Context->OMSetRenderTargets(1, ssaoResultRTV.GetAddressOf(), 0);
 
 	// Use the full screen triangle vertex shader to render to the screen,
 	// Set pixel shader texture and sampler, then draw
 	fullscreenVS->SetShader();
 	occlusionPS->SetShader();
-	occlusionPS->SetShaderResourceView("Pixels", sceneColorsSRV.Get());
-	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
 	
-	// Set SSAO offsets in shader shader
+	// Calculate inverse projection matrix
+	XMFLOAT4X4 invProj;
+	XMFLOAT4X4 proj = camera->GetProjection();
+	XMStoreFloat4x4(&invProj, XMMatrixInverse(0, XMLoadFloat4x4(&proj)));
+	
+	// Set SSAO data
+	occlusionPS->SetMatrix4x4("viewMatrix", camera->GetView());
+	occlusionPS->SetMatrix4x4("projectionMatrix", proj);
+	occlusionPS->SetMatrix4x4("invProjMatrix", invProj);
 	occlusionPS->SetData("ssaoOffsets", &ssaoOffsets[0], sizeof(DirectX::XMFLOAT4) * 64);
 
+	// Set SSAO textures
+	occlusionPS->SetShaderResourceView("Normals", sceneNormalSRV.Get());
+	occlusionPS->SetShaderResourceView("Depths", sceneDepthSRV.Get());
+	occlusionPS->SetShaderResourceView("Random", randomTextureSRV.Get());
+
+	// Set SSAO samplers
+	occlusionPS->SetSamplerState("BasicSampler", sampler.Get());
+	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
+	
 	Graphics::Context->Draw(3, 0);
+
+	
+	// Restore the back buffer for a final draw to the screen
+	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+
 
 	// Unbind textures to fix D3D warnings
 	// (sceneColors cannot be a depth buffer 
