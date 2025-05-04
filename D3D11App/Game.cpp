@@ -126,10 +126,22 @@ void Game::SetupMRT()
 	texDesc.MipLevels = 1;	// No mip chain needed for render target
 	texDesc.MiscFlags = 0;
 	texDesc.SampleDesc.Count = 1;
+
+	// Depth texture has a different color format (float32)
+	D3D11_TEXTURE2D_DESC depthDesc = {};
+	depthDesc.Width = Window::Width();
+	depthDesc.Height = Window::Height();
+	depthDesc.ArraySize = 1;
+	depthDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	depthDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	depthDesc.MipLevels = 1;	// No mip chain needed for render target
+	depthDesc.MiscFlags = 0;
+	depthDesc.SampleDesc.Count = 1;
+
 	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneColorsTexture.GetAddressOf());
 	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneNormalTexture.GetAddressOf());
 	Graphics::Device->CreateTexture2D(&texDesc, 0, ambientTexture.GetAddressOf());
-	Graphics::Device->CreateTexture2D(&texDesc, 0, sceneDepthTexture.GetAddressOf());
+	Graphics::Device->CreateTexture2D(&depthDesc, 0, sceneDepthTexture.GetAddressOf());
 	Graphics::Device->CreateTexture2D(&texDesc, 0, ssaoResultTexture.GetAddressOf());
 	Graphics::Device->CreateTexture2D(&texDesc, 0, blurSSAOTexture.GetAddressOf());
 
@@ -138,10 +150,16 @@ void Game::SetupMRT()
 	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D; // Points to a Texture2D
 	rtvDesc.Texture2D.MipSlice = 0;	// Which mip are we rendering into?
 	rtvDesc.Format = texDesc.Format; // Same format as texture
+	
+	D3D11_RENDER_TARGET_VIEW_DESC depthRTVDesc = {};
+	depthRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	depthRTVDesc.Texture2D.MipSlice = 0;
+	depthRTVDesc.Format = depthDesc.Format;
+
 	Graphics::Device->CreateRenderTargetView(sceneColorsTexture.Get(), &rtvDesc, sceneColorsRTV.GetAddressOf());
 	Graphics::Device->CreateRenderTargetView(sceneNormalTexture.Get(), &rtvDesc, sceneNormalRTV.GetAddressOf());
 	Graphics::Device->CreateRenderTargetView(ambientTexture.Get(), &rtvDesc, ambientRTV.GetAddressOf());
-	Graphics::Device->CreateRenderTargetView(sceneDepthTexture.Get(), &rtvDesc, sceneDepthRTV.GetAddressOf());
+	Graphics::Device->CreateRenderTargetView(sceneDepthTexture.Get(), &depthRTVDesc, sceneDepthRTV.GetAddressOf());
 	Graphics::Device->CreateRenderTargetView(ssaoResultTexture.Get(), &rtvDesc, ssaoResultRTV.GetAddressOf());
 	Graphics::Device->CreateRenderTargetView(blurSSAOTexture.Get(), &rtvDesc, blurSSAORTV.GetAddressOf());
 
@@ -756,6 +774,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
 		const float color[4] = { 0, 0, 0, 0 };
+		const float white[4] = { 1, 1, 1, 1 };
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 		
@@ -763,7 +782,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearRenderTargetView(sceneColorsRTV.Get(), color);
 		Graphics::Context->ClearRenderTargetView(sceneNormalRTV.Get(), color);
 		Graphics::Context->ClearRenderTargetView(ambientRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(sceneDepthRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(sceneDepthRTV.Get(), white);
 		Graphics::Context->ClearRenderTargetView(ssaoResultRTV.Get(), color);
 		Graphics::Context->ClearRenderTargetView(blurSSAORTV.Get(), color);
 
