@@ -84,6 +84,9 @@ private:
 	std::shared_ptr<SimplePixelShader> occlusionPS;
 	std::shared_ptr<SimpleVertexShader> fullscreenVS;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTextureSRV;
+	
+	int ssaoSamples;	// Must be between 1 and 64
+	float ssaoRadius;
 	DirectX::XMFLOAT4* ssaoOffsets;
 
 	// Textures, RTVs, and SRVs

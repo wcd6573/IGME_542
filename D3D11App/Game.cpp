@@ -520,6 +520,10 @@ void Game::CreateRandom4x4TextureAndOffsetArray()
 	// Count must match shader
 	ssaoOffsets = new DirectX::XMFLOAT4[64];
 
+	// Also set samples and radius values here because why not
+	ssaoSamples = 64;
+	ssaoRadius = 1.0f;
+
 	for (int i = 0; i < 64; i++)
 	{
 		// Offsets should be in a hemisphere ([-1,1], [-1,1], [0,1])
@@ -658,7 +662,8 @@ void Game::Update(float deltaTime, float totalTime)
 	UINewFrame(deltaTime);
 	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, 
 		randomTextureSRV, sceneColorsSRV, sceneNormalSRV, 
-		sceneDepthSRV, ambientSRV, ssaoResultSRV, blurSSAOSRV);
+		sceneDepthSRV, ambientSRV, ssaoResultSRV, blurSSAOSRV,
+		&ssaoSamples, &ssaoRadius);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -805,6 +810,14 @@ void Game::Draw(float deltaTime, float totalTime)
 	if (lightOptions.DrawLights) DrawLightSources();
 
 	// --- Post Process ---
+	// Turn OFF vertex and index buffers since we'll be using the
+	// full-screen triangle trick
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	ID3D11Buffer* nothing = 0;
+	Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
+	Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
+
 	// Render to the ssaoResult texture
 	Graphics::Context->OMSetRenderTargets(1, ssaoResultRTV.GetAddressOf(), 0);
 
@@ -822,7 +835,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	occlusionPS->SetMatrix4x4("viewMatrix", camera->GetView());
 	occlusionPS->SetMatrix4x4("projectionMatrix", proj);
 	occlusionPS->SetMatrix4x4("invProjMatrix", invProj);
+	occlusionPS->SetInt("ssaoSamples", ssaoSamples);
+	occlusionPS->SetFloat("ssaoRadius", ssaoRadius);
 	occlusionPS->SetData("ssaoOffsets", &ssaoOffsets[0], sizeof(DirectX::XMFLOAT4) * 64);
+	occlusionPS->SetFloat2("randomTextureScreenScale", XMFLOAT2(Window::Width() / 4.0f, Window::Height() / 4.0f));
 
 	// Set SSAO textures
 	occlusionPS->SetShaderResourceView("Normals", sceneNormalSRV.Get());
@@ -832,7 +848,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Set SSAO samplers
 	occlusionPS->SetSamplerState("BasicSampler", sampler.Get());
 	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
-	
+	occlusionPS->CopyAllBufferData();
+
 	Graphics::Context->Draw(3, 0);
 
 	

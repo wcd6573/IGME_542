@@ -27,7 +27,8 @@ void BuildUI(
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepth,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ambient,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResult,
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO,
+	int* ssaoSamples, float* ssaoRadius);
 
 // Helpers for individual scene elements
 void UIMesh(std::shared_ptr<Mesh> mesh);

@@ -51,7 +51,8 @@ void BuildUI(
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepth,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ambient,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResult,
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO)
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO,
+	int* ssaoSamples, float* ssaoRadius)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -281,8 +282,10 @@ void BuildUI(
 		}
 
 		// === Post processes ===
-		if (ImGui::TreeNode("Post Process"))
+		if (ImGui::TreeNode("SSAO"))
 		{
+			ImGui::SliderInt("Samples", ssaoSamples, 1, 64);
+			ImGui::SliderFloat("Radius", ssaoRadius, 0.001f, 5.0f);
 			ImGui::Text("Random Texture");
 			ImGui::Image(randomTexture.Get(), ImVec2(256, 256));
 			ImGui::Text("Scene Colors");

@@ -42,7 +42,7 @@ float3 ViewSpaceFromDepth(float depth, float2 uv)
     uv = uv * 2.0f - 1.0f;
     float4 screenPos = float4(uv, depth, 1.0f);
 
-    // Back to view space
+	// Back to view space
     float4 viewPos = mul(invProjMatrix, screenPos);
     return viewPos.xyz / viewPos.w;
 }
@@ -59,12 +59,12 @@ float2 UVFromViewSpacePosition(float3 viewSpacePosition)
     // position, then perspective divide
     float4 samplePosScreen = mul(projectionMatrix, float4(viewSpacePosition, 1));
     samplePosScreen.xyz /= samplePosScreen.w;
-    
-    // Adjust from NDCs to UV coords (flip the Y)
+
+	// Adjust from NDCs to UV coords (flip the Y!)
     samplePosScreen.xy = samplePosScreen.xy * 0.5f + 0.5f;
     samplePosScreen.y = 1.0f - samplePosScreen.y;
-    
-    // Return just the UVs
+	
+	// Return just the UVs
     return samplePosScreen.xy;
 }
 
