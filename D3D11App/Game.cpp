@@ -657,7 +657,8 @@ void Game::Update(float deltaTime, float totalTime)
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
 	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, 
-		randomTextureSRV, sceneColorsSRV, sceneNormalSRV);
+		randomTextureSRV, sceneColorsSRV, sceneNormalSRV, 
+		sceneDepthSRV, ambientSRV, ssaoResultSRV, blurSSAOSRV);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -732,14 +733,6 @@ void Game::Update(float deltaTime, float totalTime)
 		currentScene = &entitiesRandom;
 	}
 
-	/*
-	* Just keep PBR on
-	if (Input::KeyPress('P'))
-	{
-		lightOptions.UsePBR = !lightOptions.UsePBR;
-	}
-	*/
-
 	// Handle light count changes, clamped appropriately
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
 	if (Input::KeyDown(VK_DOWN)) lightOptions.LightCount--;
@@ -764,13 +757,19 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Clear render target views
 		Graphics::Context->ClearRenderTargetView(sceneColorsRTV.Get(), color);
 		Graphics::Context->ClearRenderTargetView(sceneNormalRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(ambientRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(sceneDepthRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(ssaoResultRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(blurSSAORTV.Get(), color);
 
 		// Set up multiple render targets
-		ID3D11RenderTargetView* renderTargets[2] = {};
+		ID3D11RenderTargetView* renderTargets[4] = {};
 		renderTargets[0] = sceneColorsRTV.Get();
-		renderTargets[1] = sceneNormalRTV.Get();
+		renderTargets[1] = ambientRTV.Get();
+		renderTargets[2] = sceneNormalRTV.Get();
+		renderTargets[3] = sceneDepthRTV.Get();
 
-		Graphics::Context->OMSetRenderTargets(2, renderTargets, Graphics::DepthBufferDSV.Get());
+		Graphics::Context->OMSetRenderTargets(4, renderTargets, Graphics::DepthBufferDSV.Get());
 	}
 
 	// DRAW geometry

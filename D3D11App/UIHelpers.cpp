@@ -47,7 +47,11 @@ void BuildUI(
 	DemoLightingOptions& lightOptions,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTexture,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal)
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepth,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ambient,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResult,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -283,8 +287,12 @@ void BuildUI(
 			ImGui::Image(randomTexture.Get(), ImVec2(256, 256));
 			ImGui::Text("Scene Colors");
 			ImGui::Image(sceneColors.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Text("Scene Ambient");
+			ImGui::Image(ambient.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
 			ImGui::Text("Scene Normals");
 			ImGui::Image(sceneNormal.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Text("Scene Depths");
+			ImGui::Image(sceneDepth.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
 			ImGui::TreePop();
 		}
 	}

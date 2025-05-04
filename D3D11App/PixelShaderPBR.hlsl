@@ -1,8 +1,13 @@
+/*
+William Duprey
+5/3/25
+PBR Pixel Shader 
+ - Starter code provided by Prof. Chris Cascioli
+ - Modified to support SSAO
+*/
 
 #include "ShaderStructs.hlsli"
 #include "Lighting.hlsli"
-
-
 
 cbuffer ExternalData : register(b0)
 {
@@ -32,7 +37,9 @@ cbuffer ExternalData : register(b0)
 struct PS_Output
 {
     float4 color	: SV_TARGET0;
-    float4 normals	: SV_TARGET1;
+    float4 ambient  : SV_TARGET1;
+    float4 normals	: SV_TARGET2;
+	float4 depth    : SV_TARGET3;
 };
 
 // Texture related resources
@@ -79,7 +86,9 @@ PS_Output main(VertexToPixel input)
 	float3 specColor = lerp(F0_NON_METAL, surfaceColor.rgb, metal);
 
 	// Start off with ambient
-	float3 totalLight = ambientColor * surfaceColor.rgb;
+	// Lerp the ambient color to black using the pixel's metalness
+    float3 ambientLight = lerp(ambientColor, float3(0, 0, 0), metal);
+	float3 totalLight = ambientLight * surfaceColor.rgb;
 
 	// Loop and handle all lights
 	for (int i = 0; i < lightCount; i++)
@@ -112,6 +121,8 @@ PS_Output main(VertexToPixel input)
 	// Set up MRT output
     PS_Output output;
     output.color = float4(final, 1);
+    output.ambient = float4(surfaceColor.xyz * ambientLight, 1);
     output.normals = float4(input.normal * 0.5f + 0.5f, 1);
+    output.depth = float4(input.screenPosition.z, 0, 0, 1);
     return output;
 }
