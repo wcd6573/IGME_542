@@ -78,13 +78,18 @@ private:
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
 	// --- SSAO Fields ---
-	// Shader Fields
+	// Shaders
+	std::shared_ptr<SimplePixelShader> occlusionPS;
+	std::shared_ptr<SimplePixelShader> occlusionBlurPS;
+	std::shared_ptr<SimplePixelShader> occlusionCombinePS;
+	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+	
+	// Samplers
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> clampSampler;
-	std::shared_ptr<SimplePixelShader> occlusionPS;
-	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+
+	// SSAO data
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTextureSRV;
-	
 	int ssaoSamples;	// Must be between 1 and 64
 	float ssaoRadius;
 	DirectX::XMFLOAT4* ssaoOffsets;

@@ -284,21 +284,25 @@ void BuildUI(
 		// === Post processes ===
 		if (ImGui::TreeNode("SSAO"))
 		{
+			ImVec2 size = ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f);
+			
 			ImGui::SliderInt("Samples", ssaoSamples, 1, 64);
 			ImGui::SliderFloat("Radius", ssaoRadius, 0.001f, 5.0f);
 			ImGui::Text("Random Texture");
 			ImGui::Image(randomTexture.Get(), ImVec2(256, 256));
 			ImGui::Text("Scene Colors");
-			ImGui::Image(sceneColors.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Image(sceneColors.Get(), size);
 			ImGui::Text("Scene Ambient");
-			ImGui::Image(ambient.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Image(ambient.Get(), size);
 			ImGui::Text("Scene Normals");
-			ImGui::Image(sceneNormal.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Image(sceneNormal.Get(), size);
 			ImGui::Text("Scene Depths");
-			ImGui::Image(sceneDepth.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
+			ImGui::Image(sceneDepth.Get(), size);
 			ImGui::Text("SSAO Results");
-			ImGui::Image(ssaoResult.Get(), ImVec2(Window::Width() / 5.0f, Window::Height() / 5.0f));
-			
+			ImGui::Image(ssaoResult.Get(), size);
+			ImGui::Text("SSAO Blur");
+			ImGui::Image(blurSSAO.Get(), size);
+
 			ImGui::TreePop();
 		}
 	}

@@ -256,6 +256,7 @@ void Game::LoadAssetsAndCreateEntities()
 	solidColorPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SolidColorPS.cso").c_str());
 	fullscreenVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"FullscreenVS.cso").c_str());
 	occlusionPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionPS.cso").c_str());
+	occlusionBlurPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionBlurPS.cso").c_str());
 	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 
@@ -828,7 +829,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
 
-	// --- Post Process ---
+	// --- Calculate SSAO ---
 	// Turn OFF vertex and index buffers since we'll be using the
 	// full-screen triangle trick
 	UINT stride = sizeof(Vertex);
@@ -870,8 +871,23 @@ void Game::Draw(float deltaTime, float totalTime)
 	occlusionPS->CopyAllBufferData();
 
 	Graphics::Context->Draw(3, 0);
+	
+	// --- Blur SSAO ---
+	// Set the render target for the ssao blur
+	Graphics::Context->OMSetRenderTargets(1, blurSSAORTV.GetAddressOf(), 0);
+	
+	// Set blur shader and necessary data
+	fullscreenVS->SetShader();
+	occlusionBlurPS->SetShader();
+	occlusionBlurPS->SetFloat2("pixelSize", XMFLOAT2(1.0f / Window::Width(), 1.0f / Window::Height()));
+	occlusionBlurPS->SetSamplerState("ClampSampler", clampSampler);
+	occlusionBlurPS->SetShaderResourceView("SSAO", ssaoResultSRV.Get());
+	occlusionBlurPS->CopyAllBufferData();
 
 	
+	Graphics::Context->Draw(3, 0);
+	
+
 	// Restore the back buffer for a final draw to the screen
 	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
 
