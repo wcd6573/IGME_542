@@ -1,3 +1,9 @@
+/*
+William Duprey
+5/4/25
+Screen Space Ambient Occlusion 4x4 Blur Pixel Shader
+*/
+
 struct VertexToPixel
 {
     float4 position : SV_POSITION;
@@ -13,7 +19,9 @@ Texture2D SSAO : register(t0);
 SamplerState ClampSampler : register(s0);
 
 // --------------------------------------------------------
-// Main function to apply a 4x4 blur on SSAO results.
+// Main function to apply a 4x4 blur on SSAO results,
+// smoothing out the repeated pattern (which was due to
+// using a 4x4 texture for random values in the SSAO computation.
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {

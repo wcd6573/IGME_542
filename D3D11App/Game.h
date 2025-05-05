@@ -93,6 +93,10 @@ private:
 	int ssaoSamples;	// Must be between 1 and 64
 	float ssaoRadius;
 	DirectX::XMFLOAT4* ssaoOffsets;
+	
+	// Booleans to toggle ssao on / off, or only display ssao
+	bool ssaoOn;
+	bool ssaoOnly;
 
 	// Textures, RTVs, and SRVs
 	// Scene colors

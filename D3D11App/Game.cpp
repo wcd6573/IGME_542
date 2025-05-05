@@ -59,7 +59,7 @@ void Game::Initialize()
 
 	// Set up defaults for lighting options
 	lightOptions = {
-		.LightCount = 3,
+		.LightCount = 1,
 		.GammaCorrection = true,
 		.UseAlbedoTexture = true,
 		.UseMetalMap = true,
@@ -68,9 +68,9 @@ void Game::Initialize()
 		.UsePBR = true,
 		.FreezeLightMovement = false,
 		.DrawLights = true,
-		.ShowSkybox = true,
+		.ShowSkybox = false,
 		.UseBurleyDiffuse = false,
-		.AmbientColor = XMFLOAT3(0,0,0)
+		.AmbientColor = XMFLOAT3(0.3f,0.3f,0.3f)
 	};
 
 	// Set initial graphics API state
@@ -257,6 +257,7 @@ void Game::LoadAssetsAndCreateEntities()
 	fullscreenVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"FullscreenVS.cso").c_str());
 	occlusionPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionPS.cso").c_str());
 	occlusionBlurPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionBlurPS.cso").c_str());
+	occlusionCombinePS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"OcclusionCombinePS.cso").c_str());
 	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 
@@ -542,6 +543,8 @@ void Game::CreateRandom4x4TextureAndOffsetArray()
 	// Also set samples and radius values here because why not
 	ssaoSamples = 64;
 	ssaoRadius = 1.0f;
+	ssaoOn = true;
+	ssaoOnly = true;
 
 	for (int i = 0; i < 64; i++)
 	{
@@ -680,9 +683,9 @@ void Game::Update(float deltaTime, float totalTime)
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
 	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, 
-		randomTextureSRV, sceneColorsSRV, sceneNormalSRV, 
+		sceneColorsSRV, sceneNormalSRV, 
 		sceneDepthSRV, ambientSRV, ssaoResultSRV, blurSSAOSRV,
-		&ssaoSamples, &ssaoRadius);
+		&ssaoSamples, &ssaoRadius, &ssaoOn, &ssaoOnly);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -861,15 +864,16 @@ void Game::Draw(float deltaTime, float totalTime)
 	occlusionPS->SetFloat2("randomTextureScreenScale", XMFLOAT2(Window::Width() / 4.0f, Window::Height() / 4.0f));
 
 	// Set SSAO textures
-	occlusionPS->SetShaderResourceView("Normals", sceneNormalSRV.Get());
-	occlusionPS->SetShaderResourceView("Depths", sceneDepthSRV.Get());
-	occlusionPS->SetShaderResourceView("Random", randomTextureSRV.Get());
+	occlusionPS->SetShaderResourceView("Normals", sceneNormalSRV);
+	occlusionPS->SetShaderResourceView("Depths", sceneDepthSRV);
+	occlusionPS->SetShaderResourceView("Random", randomTextureSRV);
 
 	// Set SSAO samplers
-	occlusionPS->SetSamplerState("BasicSampler", sampler.Get());
-	occlusionPS->SetSamplerState("ClampSampler", clampSampler.Get());
+	occlusionPS->SetSamplerState("BasicSampler", sampler);
+	occlusionPS->SetSamplerState("ClampSampler", clampSampler);
 	occlusionPS->CopyAllBufferData();
 
+	// Draw to the ssaoResult render target
 	Graphics::Context->Draw(3, 0);
 	
 	// --- Blur SSAO ---
@@ -881,19 +885,34 @@ void Game::Draw(float deltaTime, float totalTime)
 	occlusionBlurPS->SetShader();
 	occlusionBlurPS->SetFloat2("pixelSize", XMFLOAT2(1.0f / Window::Width(), 1.0f / Window::Height()));
 	occlusionBlurPS->SetSamplerState("ClampSampler", clampSampler);
-	occlusionBlurPS->SetShaderResourceView("SSAO", ssaoResultSRV.Get());
+	occlusionBlurPS->SetShaderResourceView("SSAO", ssaoResultSRV);
 	occlusionBlurPS->CopyAllBufferData();
 
-	
+	// Draw to the blurSSAO render target
 	Graphics::Context->Draw(3, 0);
 	
-
+	// --- Final SSAO Combine ---
 	// Restore the back buffer for a final draw to the screen
 	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+	
+	// Set up combine shader
+	fullscreenVS->SetShader();
+	occlusionCombinePS->SetShader();
+	occlusionCombinePS->SetShaderResourceView("SceneColors", sceneColorsSRV);
+	occlusionCombinePS->SetShaderResourceView("Ambient", ambientSRV);
+	occlusionCombinePS->SetShaderResourceView("SSAOBlur", blurSSAOSRV);
+	occlusionCombinePS->SetSamplerState("BasicSampler", sampler);
+	
+	// Set up combine shader cbuffer data
+	occlusionCombinePS->SetInt("ssaoOn", ssaoOn);
+	occlusionCombinePS->SetInt("ssaoOnly", ssaoOnly);
+	occlusionCombinePS->CopyAllBufferData();
 
+	// Draw to the back buffer
+	Graphics::Context->Draw(3, 0);
 
 	// Unbind textures to fix D3D warnings
-	// (sceneColors cannot be a depth buffer 
+	// (thigns cannot be a depth buffer 
 	// and shader resource at the same time)
 	ID3D11ShaderResourceView* nullSRVs[128] = {};
 	Graphics::Context->PSSetShaderResources(0, 128, nullSRVs);

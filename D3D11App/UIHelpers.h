@@ -21,14 +21,13 @@ void BuildUI(
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
 	DemoLightingOptions& lightOptions,
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> randomTexture,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneColors,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneNormal,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepth,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ambient,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResult,
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSSAO,
-	int* ssaoSamples, float* ssaoRadius);
+	int* ssaoSamples, float* ssaoRadius, bool* ssaoOn, bool* ssaoOnly);
 
 // Helpers for individual scene elements
 void UIMesh(std::shared_ptr<Mesh> mesh);
